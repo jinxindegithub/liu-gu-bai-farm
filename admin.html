@@ -1080,35 +1080,61 @@ function parseCSV(text) {
 }
 
 function mapCowRow(row, headers) {
-  // 支持中英文列名
+  // 支持中英文列名，支持乱码中文但括号里英文正确的情况（GBK按UTF-8读导致中文乱码）
   const map = {};
   headers.forEach((h, i) => {
-    const key = h.trim().toLowerCase()
-      .replace(/[（(]([^)）]+)[)）]/g, '$1') // 提取括号里的英文名
-      .replace(/\s+/g, '');
-    map[key] = row[i]?.trim() || '';
+    // 1. 提取括号里的英文（最重要，乱码时英文也不会乱）
+    let en = '';
+    const bracketMatch = h.match(/[（(]([a-zA-Z0-9_]+)[)）]/);
+    if (bracketMatch) en = bracketMatch[1].toLowerCase();
+    
+    // 2. 原始列名（去空格、小写）
+    const raw = h.trim().toLowerCase();
+    
+    // 3. 清洗后的列名（去掉括号内容，用于中文匹配）
+    const clean = h.replace(/[（(][^)）]*[)）]/g, '').trim().toLowerCase();
+    
+    map[i] = { raw, clean, en, original: h };
   });
 
-  // 中英文字段匹配
-  const getVal = (...keys) => {
-    for (const k of keys) {
-      if (map[k] !== undefined && map[k] !== '') return map[k];
+  // 按优先级匹配：先匹配括号里的英文（最准），再匹配中文
+  const findCol = (...keys) => {
+    // keys 里第一个是英文名，后面是中文名
+    const enKey = keys[0];
+    const cnKeys = keys.slice(1);
+    
+    // 1. 优先匹配括号里的英文（乱码也不怕）
+    for (let i = 0; i < headers.length; i++) {
+      if (map[i].en === enKey) return row[i]?.trim() || '';
     }
+    
+    // 2. 再匹配列名就是纯英文的情况
+    for (let i = 0; i < headers.length; i++) {
+      if (map[i].raw === enKey) return row[i]?.trim() || '';
+    }
+    
+    // 3. 最后匹配中文（只有编码正确时才有用）
+    for (let i = 0; i < headers.length; i++) {
+      for (const ck of cnKeys) {
+        if (map[i].clean === ck) return row[i]?.trim() || '';
+      }
+    }
+    
     return '';
   };
 
   return {
-    tag: getVal('tag', '耳标', '耳标号', '耳标号tag'),
-    name: getVal('name', '名字', '姓名', '名称'),
-    breed: getVal('breed', '品种') || '西门塔尔',
-    gender: getVal('gender', '性别') || '母',
-    birth_date: getVal('birth_date', '出生日期', '出生', '生日') || null,
-    weight: parseFloat(getVal('weight', 'weight_kg', '体重', '体重kg')) || 0,
-    barn: getVal('barn', '牛舍', '所在牛舍', '栏舍') || '',
-    status: getVal('status', '状态', '健康状态') || '正常',
-    source: getVal('source', '来源', '来源方式') || '自繁',
-    entry_date: getVal('entry_date', '入场日期', '进场日期', '入场') || null,
-    note: getVal('note', '备注', '说明') || ''
+    tag: findCol('tag', '耳标', '耳标号'),
+    name: findCol('name', '名字', '姓名', '名称'),
+    breed: findCol('breed', '品种') || '西门塔尔',
+    gender: findCol('gender', '性别') || '母',
+    birth_date: findCol('birth_date', '出生日期', '出生', '生日') || null,
+    weight: parseFloat(findCol('weight', 'weight_kg', '体重', '体重kg')) || 0,
+    barn: findCol('barn', '牛舍', '所在牛舍', '栏舍') || '',
+    status: findCol('status', '状态', '健康状态') || '正常',
+    source: findCol('source', '来源', '来源方式') || '自繁',
+    entry_date: findCol('entry_date', '入场日期', '进场日期', '入场') || null,
+    note: findCol('note', '备注', '说明') || ''
   };
 }
 
