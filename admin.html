@@ -1565,7 +1565,7 @@ function editBarn(barn) {
         <div class="form-group"><label>容量(头)</label><input type="number" id="eb-cap" value="${barn.capacity || 0}"></div>
         <div style="text-align:right;margin-top:15px;display:flex;gap:10px;justify-content:flex-end;">
           <button class="btn" onclick="closeModal()">取消</button>
-          <button class="btn btn-primary" onclick="saveBarnEdit(${barn.id})">保存</button>
+          <button class="btn btn-primary" onclick="saveBarnEdit(${barn.id}, '${barn.name || ''}')">保存</button>
         </div>
       </div>
     </div>
@@ -1575,7 +1575,7 @@ function editBarn(barn) {
   document.body.appendChild(div.firstElementChild);
 }
 
-async function saveBarnEdit(id) {
+async function saveBarnEdit(id, oldName) {
   const name = document.getElementById('eb-name').value.trim();
   const type = document.getElementById('eb-type').value;
   const capacity = parseInt(document.getElementById('eb-cap').value) || 0;
@@ -1583,8 +1583,18 @@ async function saveBarnEdit(id) {
 
   try {
     await SUPA.update('barns', id, { name, type, capacity });
+    // 如果牛舍名称变了，同步更新牛只表里所有对应牛只的牛舍字段
+    if (oldName && oldName !== name) {
+      try {
+        await SUPA.api('/rest/v1/cows?barn=eq.' + encodeURIComponent(oldName), {
+          method: 'PATCH',
+          body: JSON.stringify({ barn: name })
+        });
+      } catch(e) { console.warn('同步牛只牛舍字段失败', e); }
+    }
     closeModal();
     renderBarns();
+    renderCows();
     refreshBarnSelects();
     alert('保存成功！');
   } catch(e) { alert('保存失败：' + e.message); }
