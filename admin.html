@@ -1161,12 +1161,20 @@ function readCsvFile(file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target.result;
-        // 检查是否有乱码（如果包含大量替换字符 或 表头解析后列名为空，说明编码不对）
+        // 统计乱码替换字符（U+FFFD）的比例
+        const total = text.length;
+        let badCount = 0;
+        for (let i = 0; i < total; i++) {
+          if (text.charCodeAt(i) === 0xFFFD) badCount++;
+        }
+        // 乱码比例超过 2% 说明编码不对
         const rows = parseCSV(text);
-        if (rows.length >= 2 && rows[0].some(h => h && h.trim() && !h.includes('\uFFFD'))) {
+        const badRatio = total > 0 ? badCount / total : 0;
+        
+        if (rows.length >= 2 && badRatio < 0.02) {
           resolve({ text, encoding });
         } else {
-          reject(new Error('encoding mismatch'));
+          reject(new Error('encoding mismatch: ' + badRatio.toFixed(3) + ' bad chars'));
         }
       };
       reader.onerror = reject;
@@ -1180,10 +1188,10 @@ function readCsvFile(file) {
     .catch(() => tryDecode('GBK')
       .then(r => processCsv(r.text, r.encoding))
       .catch(() => {
-        // 最后再用 UTF-8 硬试一次，哪怕乱码也让用户看看
+        // 最后再试一次 GBK（强制），很多 Windows Excel 存的都是 GBK
         const reader = new FileReader();
-        reader.onload = (e) => processCsv(e.target.result, 'UTF-8');
-        reader.readAsText(file, 'UTF-8');
+        reader.onload = (e) => processCsv(e.target.result, 'GBK');
+        reader.readAsText(file, 'GBK');
       })
     );
 }
