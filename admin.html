@@ -346,8 +346,8 @@
     </div>
     <div class="login-error" id="login-error"></div>
     <div class="login-input">
-      <label>邮箱</label>
-      <input type="email" id="login-email" placeholder="请输入邮箱" value="360988507@qq.com">
+      <label>账号</label>
+      <input type="text" id="login-email" placeholder="请输入账号" value="admin">
     </div>
     <div class="login-input">
       <label>密码</label>
@@ -355,8 +355,8 @@
     </div>
     <button class="login-btn" id="login-btn" onclick="doLogin()">登 录</button>
     <div class="login-tip">
-      请使用 Supabase 后台创建的账号登录<br>
-      数据保存在云端，多设备同步
+      默认管理员：admin / 123456<br>
+      登录后可在系统设置中管理其他账号
     </div>
   </div>
 </div>
@@ -531,6 +531,20 @@
       </div>
       <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
     </div>
+    <div class="card" id="user-mgmt-card">
+      <h3>👤 账号管理 <small style="font-size:12px;color:#888;font-weight:normal;">管理员可见</small></h3>
+      <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+        <input type="text" id="new-user-name" placeholder="账号" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; width:140px; font-size:13px;">
+        <input type="password" id="new-user-pass" placeholder="密码" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; width:140px; font-size:13px;">
+        <select id="new-user-role" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+          <option value="viewer">查看员（只能看）</option>
+          <option value="operator">操作员（可录入数据）</option>
+          <option value="admin">管理员（全部权限）</option>
+        </select>
+        <button class="btn btn-primary" onclick="addUser()">添加账号</button>
+      </div>
+      <div id="user-list"><div class="loading">加载中...</div></div>
+    </div>
   </div>
 </div>
 
@@ -625,22 +639,27 @@ const SUPA = {
   }
 };
 
-// ========== 登录系统 ==========
+// ========== 登录系统（用 farm_users 表自建账号）==========
 function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
+  const username = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const err = document.getElementById('login-error');
   const btn = document.getElementById('login-btn');
 
-  if (!email || !password) { err.textContent = '请输入邮箱和密码'; return; }
+  if (!username || !password) { err.textContent = '请输入账号和密码'; return; }
   err.textContent = '';
   btn.disabled = true;
   btn.textContent = '登录中...';
 
-  SUPA.signIn(email, password).then(user => {
+  SUPA.list('farm_users', `username=eq.${encodeURIComponent(username)}`).then(users => {
+    const user = users[0];
+    if (!user || user.password !== password) {
+      throw new Error('账号或密码错误');
+    }
+    sessionStorage.setItem('farm_user', JSON.stringify({ id: user.id, username: user.username, role: user.role }));
     document.getElementById('login-page').classList.add('hide');
-    document.getElementById('user-name').textContent = user.email;
-    document.getElementById('user-role').textContent = '管理员';
+    document.getElementById('user-name').textContent = user.username;
+    document.getElementById('user-role').textContent = { admin: '超级管理员', operator: '操作员', viewer: '查看员' }[user.role] || user.role;
     initApp();
   }).catch(e => {
     err.textContent = e.message;
@@ -652,8 +671,13 @@ function doLogin() {
 
 function doLogout() {
   if (!confirm('确定退出登录？')) return;
-  SUPA.signOut();
+  sessionStorage.removeItem('farm_user');
   location.reload();
+}
+
+function getCurrentUser() {
+  try { return JSON.parse(sessionStorage.getItem('farm_user') || 'null'); }
+  catch(e) { return null; }
 }
 
 // 回车登录
@@ -1360,6 +1384,84 @@ async function renderSettings() {
     document.getElementById('set-phone').value = s.phone || '';
     document.getElementById('set-address').value = s.address || '';
   } catch(e) {}
+
+  // 账号管理（仅 admin）
+  const cur = getCurrentUser();
+  const card = document.getElementById('user-mgmt-card');
+  if (card) card.style.display = cur?.role === 'admin' ? 'block' : 'none';
+  if (cur?.role === 'admin') renderUsers();
+}
+
+async function renderUsers() {
+  try {
+    const users = await SUPA.list('farm_users', 'order=id.asc');
+    const roleMap = { admin: '超级管理员', operator: '操作员', viewer: '查看员' };
+    const roleDesc = {
+      admin: '全部权限，可管理账号',
+      operator: '可录入和修改数据',
+      viewer: '仅可查看数据'
+    };
+
+    document.getElementById('user-list').innerHTML = `
+      <table>
+        <thead><tr><th>账号</th><th>角色</th><th>权限说明</th><th>操作</th></tr></thead>
+        <tbody>${users.map(u => `
+          <tr>
+            <td><b>${u.username}</b>${u.username === 'admin' ? ' <span class="tag tag-yellow">内置</span>' : ''}</td>
+            <td><span class="tag ${u.role === 'admin' ? 'tag-red' : u.role === 'operator' ? 'tag-blue' : 'tag-green'}">${roleMap[u.role] || u.role}</span></td>
+            <td style="color:#888; font-size:12px;">${roleDesc[u.role] || ''}</td>
+            <td>
+              ${u.username === 'admin'
+                ? '<span style="color:#aaa; font-size:12px;">不可删除</span>'
+                : `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">删除</button>
+                   <button class="btn btn-warn btn-sm" onclick="resetUserPwd(${u.id}, '${u.username}')">重置密码</button>`
+              }
+            </td>
+          </tr>
+        `).join('')}</tbody>
+      </table>
+    `;
+  } catch(e) {
+    document.getElementById('user-list').innerHTML = `<div class="loading">加载失败：${e.message}</div>`;
+  }
+}
+
+async function addUser() {
+  const name = document.getElementById('new-user-name').value.trim();
+  const pass = document.getElementById('new-user-pass').value;
+  const role = document.getElementById('new-user-role').value;
+
+  if (!name || !pass) { alert('请输入账号和密码'); return; }
+  if (name.length < 2) { alert('账号至少2位'); return; }
+  if (pass.length < 4) { alert('密码至少4位'); return; }
+
+  try {
+    // 先检查是否存在
+    const existing = await SUPA.list('farm_users', `username=eq.${encodeURIComponent(name)}`);
+    if (existing.length) { alert('该账号已存在'); return; }
+
+    await SUPA.insert('farm_users', { username: name, password: pass, role });
+    document.getElementById('new-user-name').value = '';
+    document.getElementById('new-user-pass').value = '';
+    renderUsers();
+    alert(`账号 ${name} 创建成功！`);
+  } catch(e) { alert('创建失败：' + e.message); }
+}
+
+async function deleteUser(id) {
+  if (!confirm('确定删除该账号？')) return;
+  try { await SUPA.remove('farm_users', id); renderUsers(); }
+  catch(e) { alert('删除失败：' + e.message); }
+}
+
+async function resetUserPwd(id, username) {
+  const newPwd = prompt(`请输入账号 ${username} 的新密码：`, '123456');
+  if (!newPwd) return;
+  if (newPwd.length < 4) { alert('密码至少4位'); return; }
+  try {
+    await SUPA.update('farm_users', id, { password: newPwd });
+    alert('密码重置成功！');
+  } catch(e) { alert('重置失败：' + e.message); }
 }
 
 async function saveSettings() {
@@ -1393,11 +1495,11 @@ async function initApp() {
 }
 
 // 检查登录状态
-const user = SUPA.getCurrentUser();
+const user = getCurrentUser();
 if (user) {
   document.getElementById('login-page').classList.add('hide');
-  document.getElementById('user-name').textContent = user.email;
-  document.getElementById('user-role').textContent = '管理员';
+  document.getElementById('user-name').textContent = user.username;
+  document.getElementById('user-role').textContent = { admin: '超级管理员', operator: '操作员', viewer: '查看员' }[user.role] || user.role;
   initApp();
 }
 </script>
