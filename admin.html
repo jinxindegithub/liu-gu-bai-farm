@@ -531,6 +531,22 @@
       </div>
       <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
     </div>
+    <div class="card" id="barn-mgmt-card">
+      <h3>🏠 牛舍管理</h3>
+      <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; align-items:center;">
+        <input type="text" id="new-barn-name" placeholder="牛舍名称" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; width:180px; font-size:13px;">
+        <select id="new-barn-type" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+          <option value="母牛舍">母牛舍</option>
+          <option value="育肥牛舍">育肥牛舍</option>
+          <option value="犊牛舍">犊牛舍</option>
+          <option value="育成牛舍">育成牛舍</option>
+          <option value="综合舍">综合舍</option>
+        </select>
+        <input type="number" id="new-barn-capacity" placeholder="容量(头)" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; width:110px; font-size:13px;">
+        <button class="btn btn-primary" onclick="addBarn()">添加牛舍</button>
+      </div>
+      <div id="barn-list"><div class="loading">加载中...</div></div>
+    </div>
     <div class="card" id="user-mgmt-card">
       <h3>👤 账号管理 <small style="font-size:12px;color:#888;font-weight:normal;">管理员可见</small></h3>
       <div style="background:#f5f7fa; border-radius:8px; padding:15px; margin-bottom:20px;">
@@ -1459,9 +1475,128 @@ async function renderSettings() {
 
   // 账号管理（仅 admin）
   const cur = getCurrentUser();
-  const card = document.getElementById('user-mgmt-card');
-  if (card) card.style.display = cur?.role === 'admin' ? 'block' : 'none';
-  if (cur?.role === 'admin') renderUsers();
+  const userCard = document.getElementById('user-mgmt-card');
+  if (userCard) userCard.style.display = cur?.role === 'admin' ? 'block' : 'none';
+  const barnCard = document.getElementById('barn-mgmt-card');
+  if (barnCard) barnCard.style.display = cur?.role === 'admin' ? 'block' : 'none';
+  if (cur?.role === 'admin') {
+    renderUsers();
+    renderBarns();
+  }
+}
+
+// ========== 牛舍管理 ==========
+async function renderBarns() {
+  try {
+    const [barns, cows] = await Promise.all([
+      SUPA.list('barns', 'order=id.asc'),
+      SUPA.list('cows', 'select=barn')
+    ]);
+
+    // 统计每个牛舍的牛数量
+    const countMap = {};
+    cows.forEach(c => { if (c.barn) countMap[c.barn] = (countMap[c.barn] || 0) + 1; });
+
+    document.getElementById('barn-list').innerHTML = barns.length ? `
+      <table>
+        <thead><tr><th>牛舍名称</th><th>类型</th><th>容量</th><th>当前存栏</th><th>使用率</th><th>操作</th></tr></thead>
+        <tbody>${barns.map(b => {
+          const cnt = countMap[b.name] || 0;
+          const cap = b.capacity || 0;
+          const rate = cap > 0 ? Math.round(cnt / cap * 100) : 0;
+          return `
+          <tr>
+            <td><b>${b.name}</b></td>
+            <td>${b.type || '-'}</td>
+            <td>${b.capacity || 0} 头</td>
+            <td style="font-weight:bold;color:#1b5e20;">${cnt} 头</td>
+            <td>
+              <div style="background:#eee; border-radius:4px; height:14px; width:100px; overflow:hidden;">
+                <div style="background:${rate > 90 ? '#e53935' : rate > 70 ? '#f9a825' : '#689f38'}; height:100%; width:${rate}%;"></div>
+              </div>
+              <span style="font-size:11px; color:#888;">${rate}%</span>
+            </td>
+            <td>
+              <button class="btn btn-warn btn-sm" onclick='editBarn(${JSON.stringify(b).replace(/'/g, "&apos;")})'>编辑</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteBarn(${b.id}, '${b.name}')">删除</button>
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    ` : '<p style="color:#999;text-align:center;padding:20px;">暂无牛舍，点击上方添加</p>';
+  } catch(e) {
+    document.getElementById('barn-list').innerHTML = `<div class="loading">加载失败：${e.message}</div>`;
+  }
+}
+
+async function addBarn() {
+  const name = document.getElementById('new-barn-name').value.trim();
+  const type = document.getElementById('new-barn-type').value;
+  const capacity = parseInt(document.getElementById('new-barn-capacity').value) || 0;
+
+  if (!name) { alert('请输入牛舍名称'); return; }
+
+  try {
+    const existing = await SUPA.list('barns', `name=eq.${encodeURIComponent(name)}`);
+    if (existing.length) { alert('该牛舍名称已存在'); return; }
+
+    await SUPA.insert('barns', { name, type, capacity });
+    document.getElementById('new-barn-name').value = '';
+    document.getElementById('new-barn-capacity').value = '';
+    renderBarns();
+    refreshBarnSelects();
+    alert('牛舍添加成功！');
+  } catch(e) { alert('添加失败：' + e.message); }
+}
+
+function editBarn(barn) {
+  const html = `
+    <div id="modal-mask" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:10px;padding:25px;width:90%;max-width:400px;">
+        <h3 style="color:#1b5e20;margin-bottom:15px;">编辑牛舍</h3>
+        <div class="form-group"><label>牛舍名称</label><input id="eb-name" value="${barn.name || ''}"></div>
+        <div class="form-group"><label>类型</label><select id="eb-type">
+          <option ${barn.type==='母牛舍'?'selected':''}>母牛舍</option>
+          <option ${barn.type==='育肥牛舍'?'selected':''}>育肥牛舍</option>
+          <option ${barn.type==='犊牛舍'?'selected':''}>犊牛舍</option>
+          <option ${barn.type==='育成牛舍'?'selected':''}>育成牛舍</option>
+          <option ${barn.type==='综合舍'?'selected':''}>综合舍</option>
+        </select></div>
+        <div class="form-group"><label>容量(头)</label><input type="number" id="eb-cap" value="${barn.capacity || 0}"></div>
+        <div style="text-align:right;margin-top:15px;display:flex;gap:10px;justify-content:flex-end;">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="saveBarnEdit(${barn.id})">保存</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div.firstElementChild);
+}
+
+async function saveBarnEdit(id) {
+  const name = document.getElementById('eb-name').value.trim();
+  const type = document.getElementById('eb-type').value;
+  const capacity = parseInt(document.getElementById('eb-cap').value) || 0;
+  if (!name) { alert('请输入牛舍名称'); return; }
+
+  try {
+    await SUPA.update('barns', id, { name, type, capacity });
+    closeModal();
+    renderBarns();
+    refreshBarnSelects();
+    alert('保存成功！');
+  } catch(e) { alert('保存失败：' + e.message); }
+}
+
+async function deleteBarn(id, name) {
+  if (!confirm(`确定删除牛舍「${name}」？\n\n注意：删除后，该牛舍下的牛只牛舍字段会被清空。`)) return;
+  try {
+    await SUPA.remove('barns', id);
+    renderBarns();
+    refreshBarnSelects();
+  } catch(e) { alert('删除失败：' + e.message); }
 }
 
 // 渲染权限复选框
