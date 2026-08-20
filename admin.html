@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>刘古拜牛场养殖基地 - 管理系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    background: #f0f2f5;
+    color: #333;
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* 侧边栏 */
+  .sidebar {
+    width: 240px;
+    background: linear-gradient(180deg, #1b5e20 0%, #2e7d32 100%);
+    color: #fff;
+    padding: 20px 0;
+    position: fixed;
+    top: 0; left: 0;
+    bottom: 0;
+    overflow-y: auto;
+    z-index: 100;
+  }
+  .logo-box {
+    text-align: center;
+    padding: 10px 20px 30px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 15px;
+  }
+  .logo-box .icon { font-size: 40px; margin-bottom: 8px; }
+  .logo-box .name { font-size: 17px; font-weight: bold; letter-spacing: 1px; }
+  .logo-box .sub { font-size: 11px; opacity: 0.7; margin-top: 3px; }
+
+  .menu { list-style: none; }
+  .menu li {
+    padding: 14px 25px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+  }
+  .menu li:hover {
+    background: rgba(255,255,255,0.08);
+  }
+  .menu li.active {
+    background: rgba(255,255,255,0.12);
+    border-left-color: #aed581;
+    color: #fff;
+  }
+  .menu li .m-icon { font-size: 18px; }
+
+  .sidebar-bottom {
+    position: absolute;
+    bottom: 20px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 11px;
+    opacity: 0.5;
+  }
+  .sidebar-bottom a {
+    color: rgba(255,255,255,0.7);
+    text-decoration: none;
+  }
+
+  /* 主内容区 */
+  .main {
+    flex: 1;
+    margin-left: 240px;
+    padding: 30px;
+    min-height: 100vh;
+  }
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+  }
+  .page-title {
+    font-size: 24px;
+    color: #1b5e20;
+    font-weight: bold;
+  }
+  .page-title small {
+    font-size: 13px;
+    color: #888;
+    font-weight: normal;
+    margin-left: 10px;
+  }
+
+  /* 卡片 */
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+  }
+
+  /* 统计卡片 */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 25px;
+  }
+  .stat-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: transform 0.2s;
+  }
+  .stat-card:hover { transform: translateY(-3px); }
+  .stat-icon {
+    width: 60px; height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+  .stat-icon.green { background: #e8f5e9; }
+  .stat-icon.blue { background: #e3f2fd; }
+  .stat-icon.orange { background: #fff3e0; }
+  .stat-icon.red { background: #ffebee; }
+  .stat-info h3 {
+    font-size: 28px;
+    color: #333;
+    margin-bottom: 5px;
+  }
+  .stat-info p {
+    font-size: 13px;
+    color: #888;
+  }
+
+  /* 工具栏 */
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .search-box {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .search-box input, .search-box select {
+    padding: 8px 14px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+  }
+  .search-box input:focus, .search-box select:focus {
+    border-color: #689f38;
+  }
+
+  .btn {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #7cb342, #558b2f);
+    color: #fff;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 4px 12px rgba(124,179,66,0.4);
+  }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-danger {
+    background: #f44336;
+    color: #fff;
+  }
+  .btn-danger:hover { background: #e53935; }
+  .btn-warn {
+    background: #ff9800;
+    color: #fff;
+  }
+  .btn-warn:hover { background: #fb8c00; }
+  .btn-info {
+    background: #2196f3;
+    color: #fff;
+  }
+  .btn-info:hover { background: #1976d2; }
+
+  /* 表格 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead {
+    background: #f5f7fa;
+  }
+  th {
+    text-align: left;
+    padding: 12px 15px;
+    color: #555;
+    font-weight: 600;
+    border-bottom: 2px solid #eee;
+  }
+  td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    color: #444;
+  }
+  tr:hover {
+    background: #f9fbe7;
+  }
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+  }
+  .tag-green { background: #e8f5e9; color: #388e3c; }
+  .tag-yellow { background: #fff8e1; color: #f57f17; }
+  .tag-red { background: #ffebee; color: #c62828; }
+  .tag-blue { background: #e3f2fd; color: #1565c0; }
+  .tag-gray { background: #f5f5f5; color: #666; }
+
+  /* 模态框 */
+  .modal-mask {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalIn 0.2s;
+  }
+  @keyframes modalIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal-header {
+    padding: 20px 25px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-header h3 {
+    font-size: 18px;
+    color: #1b5e20;
+  }
+  .modal-close {
+    cursor: pointer;
+    font-size: 20px;
+    color: #999;
+    background: none;
+    border: none;
+  }
+  .modal-body {
+    padding: 25px;
+  }
+  .modal-footer {
+    padding: 15px 25px;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .form-group {
+    margin-bottom: 18px;
+  }
+  .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #555;
+    font-weight: 500;
+  }
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+  }
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    border-color: #689f38;
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+
+  /* 页面切换 */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* 图表区 */
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  .chart-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+  .chart-box h3 {
+    font-size: 15px;
+    color: #333;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+  }
+  .bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 15px;
+    height: 200px;
+    padding-top: 20px;
+  }
+  .bar-item {
+    flex: 1;
+    text-align: center;
+  }
+  .bar {
+    background: linear-gradient(180deg, #8bc34a, #558b2f);
+    border-radius: 5px 5px 0 0;
+    margin: 0 auto;
+    position: relative;
+    transition: all 0.3s;
+    width: 70%;
+  }
+  .bar:hover { filter: brightness(1.1); }
+  .bar-value {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: #555;
+  }
+  .bar-label {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #888;
+  }
+
+  .pie-wrap {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+  }
+  .pie-chart {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    position: relative;
+  }
+  .pie-legend {
+    flex: 1;
+    font-size: 13px;
+  }
+  .pie-legend div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .pie-dot {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+  }
+
+  /* 移动端 */
+  @media (max-width: 768px) {
+    .sidebar {
+      width: 60px;
+    }
+    .logo-box .name, .logo-box .sub, .menu li span:not(.m-icon), .sidebar-bottom {
+      display: none;
+    }
+    .main {
+      margin-left: 60px;
+      padding: 15px;
+    }
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .chart-row {
+      grid-template-columns: 1fr;
+    }
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+    .page-title { font-size: 18px; }
+    .stat-card { padding: 15px; }
+    .stat-icon { width: 45px; height: 45px; font-size: 20px; }
+    .stat-info h3 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 侧边栏 -->
+<div class="sidebar">
+  <div class="logo-box">
+    <div class="icon">🐄</div>
+    <div class="name">刘古拜牛场</div>
+    <div class="sub">养殖管理系统</div>
+  </div>
+  <ul class="menu">
+    <li class="active" data-page="dashboard">
+      <span class="m-icon">📊</span><span>数据概览</span>
+    </li>
+    <li data-page="cows">
+      <span class="m-icon">🐄</span><span>牛只管理</span>
+    </li>
+    <li data-page="feed">
+      <span class="m-icon">🌾</span><span>饲料管理</span>
+    </li>
+    <li data-page="health">
+      <span class="m-icon">💉</span><span>健康记录</span>
+    </li>
+    <li data-page="breeding">
+      <span class="m-icon">🐮</span><span>繁育记录</span>
+    </li>
+    <li data-page="weight">
+      <span class="m-icon">⚖️</span><span>体重记录</span>
+    </li>
+    <li data-page="settings">
+      <span class="m-icon">⚙️</span><span>系统设置</span>
+    </li>
+  </ul>
+  <div class="sidebar-bottom">
+    <a href="index.html">← 返回首页</a>
+  </div>
+</div>
+
+<!-- 主内容 -->
+<div class="main">
+
+  <!-- 数据概览 -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-header">
+      <div class="page-title">数据概览 <small>刘古拜牛场养殖基地</small></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon green">🐄</div>
+        <div class="stat-info">
+          <h3 id="stat-cows">0</h3>
+          <p>存栏总数</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">🐮</div>
+        <div class="stat-info">
+          <h3 id="stat-calf">0</h3>
+          <p>犊牛数量</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange">🌾</div>
+        <div class="stat-info">
+          <h3 id="stat-feed">0</h3>
+          <p>饲料库存(kg)</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red">💊</div>
+        <div class="stat-info">
+          <h3 id="stat-sick">0</h3>
+          <p>健康异常</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>📊 牛只品种分布</h3>
+        <div class="pie-wrap">
+          <div class="pie-chart" id="breed-pie"></div>
+          <div class="pie-legend" id="breed-legend"></div>
+        </div>
+      </div>
+      <div class="chart-box">
+        <h3>📈 近6个月出栏量</h3>
+        <div class="bar-chart" id="sales-chart"></div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>🏠 牛舍存栏分布</h3>
+        <div class="bar-chart" id="barn-chart"></div>
+      </div>
+      <div class="chart-box">
+        <h3>⚕️ 近期健康记录</h3>
+        <table>
+          <thead>
+            <tr><th>牛号</th><th>类型</th><th>日期</th><th>状态</th></tr>
+          </thead>
+          <tbody id="recent-health"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 牛只管理 -->
+  <div class="page" id="page-cows">
+    <div class="page-header">
+      <div class="page-title">牛只管理</div>
+      <button class="btn btn-primary" onclick="openCowModal()">+ 添加牛只</button>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-box">
+          <input type="text" id="cow-search" placeholder="搜索牛号/品种..." oninput="renderCows()">
+          <select id="cow-filter-barn" onchange="renderCows()">
+            <option value="">全部牛舍</option>
+          </select>
+          <select id="cow-filter-status" onchange="renderCows()">
+            <option value="">全部状态</option>
+            <option value="正常">正常</option>
+            <option value="育肥中">育肥中</option>
+            <option value="怀孕">怀孕</option>
+            <option value="生病">生病</option>
+            <option value="已出栏">已出栏</option>
+          </select>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>牛号</th><th>品种</th><th>性别</th><th>牛舍</th>
+            <th>出生日期</th><th>体重(kg)</th><th>状态</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="cows-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 饲料管理 -->
+  <div class="page" id="page-feed">
+    <div class="page-header">
+      <div class="page-title">饲料管理</div>
+      <button class="btn btn-primary" onclick="openFeedModal()">+ 饲料入库</button>
+    </div>
+
+    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="stat-card">
+        <div class="stat-icon green">🌾</div>
+        <div class="stat-info">
+          <h3 id="feed-total">0</h3>
+          <p>总库存(kg)</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange">📦</div>
+        <div class="stat-info">
+          <h3 id="feed-types">0</h3>
+          <p>饲料种类</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">📅</div>
+        <div class="stat-info">
+          <h3 id="feed-days">0</h3>
+          <p>可使用天数</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <div class="page-title" style="font-size:16px;">饲料库存</div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>饲料名称</th><th>类别</th><th>库存量(kg)</th><th>单价(元/kg)</th><th>入库日期</th><th>操作</th></tr>
+        </thead>
+        <tbody id="feed-table"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <div class="page-title" style="font-size:16px;">投喂记录</div>
+        <button class="btn btn-primary btn-sm" onclick="openFeedingModal()">+ 添加投喂</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>日期</th><th>牛舍</th><th>饲料种类</th><th>用量(kg)</th><th>操作人员</th></tr>
+        </thead>
+        <tbody id="feeding-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 健康记录 -->
+  <div class="page" id="page-health">
+    <div class="page-header">
+      <div class="page-title">健康记录</div>
+      <button class="btn btn-primary" onclick="openHealthModal()">+ 添加记录</button>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-box">
+          <select id="health-filter-type" onchange="renderHealth()">
+            <option value="">全部类型</option>
+            <option value="疫苗">疫苗接种</option>
+            <option value="驱虫">驱虫</option>
+            <option value="体检">常规体检</option>
+            <option value="治疗">疾病治疗</option>
+          </select>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>日期</th><th>牛号</th><th>类型</th><th>内容</th>
+            <th>兽医</th><th>结果</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="health-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 繁育记录 -->
+  <div class="page" id="page-breeding">
+    <div class="page-header">
+      <div class="page-title">繁育记录</div>
+      <button class="btn btn-primary" onclick="openBreedingModal()">+ 添加记录</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>母牛编号</th><th>公牛品种</th><th>配种日期</th>
+            <th>预产期</th><th>状态</th><th>产犊日期</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="breeding-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 体重记录 -->
+  <div class="page" id="page-weight">
+    <div class="page-header">
+      <div class="page-title">体重记录</div>
+      <button class="btn btn-primary" onclick="openWeightModal()">+ 称重记录</button>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-box">
+          <input type="text" id="weight-search" placeholder="搜索牛号..." oninput="renderWeight()">
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>日期</th><th>牛号</th><th>品种</th><th>体重(kg)</th><th>较上次</th><th>备注</th></tr>
+        </thead>
+        <tbody id="weight-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 系统设置 -->
+  <div class="page" id="page-settings">
+    <div class="page-header">
+      <div class="page-title">系统设置</div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:20px;color:#1b5e20;">🐄 牛场基本信息</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>牛场名称</label>
+          <input type="text" id="set-farm-name" value="刘古拜牛场养殖基地">
+        </div>
+        <div class="form-group">
+          <label>联系电话</label>
+          <input type="text" id="set-phone" value="">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>牛场地址</label>
+        <input type="text" id="set-address" value="">
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:20px;color:#1b5e20;">🏠 牛舍管理</h3>
+      <div style="display:flex; gap:10px; margin-bottom:15px;">
+        <input type="text" id="new-barn-name" placeholder="输入牛舍名称" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; flex:1;">
+        <button class="btn btn-primary" onclick="addBarn()">添加牛舍</button>
+      </div>
+      <div id="barn-list"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:20px;color:#d84315;">⚠️ 数据管理</h3>
+      <p style="color:#666; margin-bottom:15px; font-size:13px;">数据保存在您的浏览器中，请定期导出备份。</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="exportData()">📤 导出所有数据</button>
+        <button class="btn btn-warn" onclick="document.getElementById('import-file').click()">📥 导入数据</button>
+        <input type="file" id="import-file" style="display:none;" accept=".json" onchange="importData(event)">
+        <button class="btn btn-danger" onclick="if(confirm('确定要清空所有数据吗？此操作不可恢复！')){clearAllData()}">🗑️ 清空所有数据</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 牛只模态框 -->
+<div class="modal-mask" id="cow-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="cow-modal-title">添加牛只</h3>
+      <button class="modal-close" onclick="closeModal('cow-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cow-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label>牛号 *</label>
+          <input type="text" id="cow-no" placeholder="如：C001">
+        </div>
+        <div class="form-group">
+          <label>品种 *</label>
+          <select id="cow-breed">
+            <option value="西门塔尔">西门塔尔</option>
+            <option value="安格斯">安格斯</option>
+            <option value="夏洛莱">夏洛莱</option>
+            <option value="利木赞">利木赞</option>
+            <option value="本地黄牛">本地黄牛</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>性别</label>
+          <select id="cow-gender">
+            <option value="母">母</option>
+            <option value="公">公</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>牛舍</label>
+          <select id="cow-barn"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>出生日期</label>
+          <input type="date" id="cow-birth">
+        </div>
+        <div class="form-group">
+          <label>当前体重(kg)</label>
+          <input type="number" id="cow-weight" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>状态</label>
+          <select id="cow-status">
+            <option value="正常">正常</option>
+            <option value="育肥中">育肥中</option>
+            <option value="怀孕">怀孕</option>
+            <option value="生病">生病</option>
+            <option value="已出栏">已出栏</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>父亲品种</label>
+          <input type="text" id="cow-sire" placeholder="可选">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <textarea id="cow-remark" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:#eee;" onclick="closeModal('cow-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveCow()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 饲料模态框 -->
+<div class="modal-mask" id="feed-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>饲料入库</h3>
+      <button class="modal-close" onclick="closeModal('feed-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>饲料名称 *</label>
+          <input type="text" id="feed-name" placeholder="如：玉米面">
+        </div>
+        <div class="form-group">
+          <label>类别</label>
+          <select id="feed-category">
+            <option value="精饲料">精饲料</option>
+            <option value="粗饲料">粗饲料</option>
+            <option value="青贮">青贮</option>
+            <option value="添加剂">添加剂</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>数量(kg) *</label>
+          <input type="number" id="feed-qty" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>单价(元/kg)</label>
+          <input type="number" id="feed-price" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>供应商</label>
+        <input type="text" id="feed-supplier">
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <textarea id="feed-remark" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:#eee;" onclick="closeModal('feed-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveFeed()">入库</button>
+    </div>
+  </div>
+</div>
+
+<!-- 投喂模态框 -->
+<div class="modal-mask" id="feeding-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>添加投喂记录</h3>
+      <button class="modal-close" onclick="closeModal('feeding-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>日期</label>
+          <input type="date" id="feeding-date">
+        </div>
+        <div class="form-group">
+          <label>牛舍</label>
+          <select id="feeding-barn"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>饲料种类</label>
+          <select id="feeding-feed"></select>
+        </div>
+        <div class="form-group">
+          <label>用量(kg)</label>
+          <input type="number" id="feeding-qty" placeholder="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>操作人员</label>
+        <input type="text" id="feeding-operator">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:#eee;" onclick="closeModal('feeding-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveFeeding()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 健康模态框 -->
+<div class="modal-mask" id="health-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="health-modal-title">添加健康记录</h3>
+      <button class="modal-close" onclick="closeModal('health-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="health-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label>日期 *</label>
+          <input type="date" id="health-date">
+        </div>
+        <div class="form-group">
+          <label>牛号 *</label>
+          <input type="text" id="health-cow" placeholder="如：C001">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>类型</label>
+          <select id="health-type">
+            <option value="疫苗">疫苗接种</option>
+            <option value="驱虫">驱虫</option>
+            <option value="体检">常规体检</option>
+            <option value="治疗">疾病治疗</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>兽医</label>
+          <input type="text" id="health-vet">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>内容/药品</label>
+        <input type="text" id="health-content" placeholder="疫苗名称/疾病诊断等">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>结果</label>
+          <select id="health-result">
+            <option value="正常">正常</option>
+            <option value="异常">异常</option>
+            <option value="治疗中">治疗中</option>
+            <option value="已痊愈">已痊愈</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>下次复检</label>
+          <input type="date" id="health-next">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <textarea id="health-remark" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:#eee;" onclick="closeModal('health-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveHealth()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 繁育模态框 -->
+<div class="modal-mask" id="breeding-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>添加繁育记录</h3>
+      <button class="modal-close" onclick="closeModal('breeding-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>母牛编号 *</label>
+          <input type="text" id="breeding-cow" placeholder="如：C001">
+        </div>
+        <div class="form-group">
+          <label>公牛品种</label>
+          <input type="text" id="breeding-sire" placeholder="如：西门塔尔">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>配种日期</label>
+          <input type="date" id="breeding-date">
+        </div>
+        <div class="form-group">
+          <label>预产期</label>
+          <input type="date" id="breeding-due">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>状态</label>
+          <select id="breeding-status">
+            <option value="待确认">待确认</option>
+            <option value="已怀孕">已怀孕</option>
+            <option value="已产犊">已产犊</option>
+            <option value="未受孕">未受孕</option>
+            <option value="流产">流产</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>产犊日期</label>
+          <input type="date" id="breeding-birth">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <textarea id="breeding-remark" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:#eee;" onclick="closeModal('breeding-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveBreeding()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 体重模态框 -->
+<div class="modal-mask" id="weight-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>添加称重记录</h3>
+      <button class="modal-close" onclick="closeModal('weight-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>日期 *</label>
+          <input type="date" id="weight-date">
+        </div>
+        <div class="form-group">
+          <label>牛号 *</label>
+          <input type="text" id="weight-cow" placeholder="如：C001">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>体重(kg) *</label>
+          <input type="number" id="weight-kg" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>品种</label>
+          <input type="text" id="weight-breed">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <textarea id="weight-remark" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:#eee;" onclick="closeModal('weight-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveWeight()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 数据存储层（封装好，以后换成 API 只改这里）==========
+const DB = {
+  get(key, def) {
+    try {
+      const v = localStorage.getItem('liugubai_' + key);
+      return v ? JSON.parse(v) : def;
+    } catch(e) { return def; }
+  },
+  set(key, val) {
+    localStorage.setItem('liugubai_' + key, JSON.stringify(val));
+  }
+};
+
+// 默认数据
+function initDefaultData() {
+  if (!DB.get('cows')) {
+    DB.set('cows', [
+      { id:1, no:'C001', breed:'西门塔尔', gender:'母', barn:'一号牛舍', birth:'2022-03-15', weight:520, status:'正常', sire:'西门塔尔', remark:'' },
+      { id:2, no:'C002', breed:'西门塔尔', gender:'母', barn:'一号牛舍', birth:'2022-05-20', weight:480, status:'怀孕', sire:'安格斯', remark:'' },
+      { id:3, no:'C003', breed:'安格斯', gender:'公', barn:'二号牛舍', birth:'2023-01-10', weight:380, status:'育肥中', sire:'安格斯', remark:'' },
+      { id:4, no:'C004', breed:'安格斯', gender:'母', barn:'二号牛舍', birth:'2023-02-28', weight:350, status:'正常', sire:'安格斯', remark:'' },
+      { id:5, no:'C005', breed:'夏洛莱', gender:'公', barn:'三号牛舍', birth:'2024-04-01', weight:180, status:'正常', sire:'夏洛莱', remark:'犊牛' },
+      { id:6, no:'C006', breed:'本地黄牛', gender:'母', barn:'三号牛舍', birth:'2021-08-10', weight:420, status:'生病', sire:'本地黄牛', remark:'感冒治疗中' },
+    ]);
+  }
+  if (!DB.get('barns')) {
+    DB.set('barns', ['一号牛舍', '二号牛舍', '三号牛舍', '犊牛舍']);
+  }
+  if (!DB.get('feeds')) {
+    DB.set('feeds', [
+      { id:1, name:'玉米面', category:'精饲料', qty:5000, price:2.5, supplier:'XX粮贸', date:'2024-01-15', remark:'' },
+      { id:2, name:'豆粕', category:'精饲料', qty:2000, price:4.2, supplier:'XX粮贸', date:'2024-01-20', remark:'' },
+      { id:3, name:'青贮玉米', category:'青贮', qty:15000, price:0.6, supplier:'自营', date:'2023-11-10', remark:'' },
+      { id:4, name:'干草', category:'粗饲料', qty:8000, price:1.2, supplier:'周边农户', date:'2023-12-01', remark:'' },
+    ]);
+  }
+  if (!DB.get('feedings')) {
+    DB.set('feedings', [
+      { id:1, date:today(), barn:'一号牛舍', feed:'玉米面', qty:50, operator:'张师傅' },
+      { id:2, date:today(), barn:'一号牛舍', feed:'青贮玉米', qty:200, operator:'张师傅' },
+      { id:3, date:today(), barn:'二号牛舍', feed:'玉米面', qty:45, operator:'李师傅' },
+    ]);
+  }
+  if (!DB.get('health')) {
+    DB.set('health', [
+      { id:1, date:'2024-01-20', cow:'C001', type:'体检', content:'常规体检', vet:'王兽医', result:'正常', next:'', remark:'' },
+      { id:2, date:'2024-01-25', cow:'C006', type:'治疗', content:'感冒治疗', vet:'王兽医', result:'治疗中', next:'2024-02-01', remark:'流鼻涕、食欲不振' },
+      { id:3, date:'2024-01-15', cow:'C002', type:'疫苗', content:'口蹄疫疫苗', vet:'王兽医', result:'正常', next:'', remark:'' },
+      { id:4, date:'2024-01-10', cow:'C003', type:'驱虫', content:'伊维菌素驱虫', vet:'李兽医', result:'正常', next:'', remark:'' },
+    ]);
+  }
+  if (!DB.get('breeding')) {
+    DB.set('breeding', [
+      { id:1, cow:'C002', sire:'安格斯', date:'2023-08-10', due:'2024-05-15', status:'已怀孕', birth:'', remark:'' },
+      { id:2, cow:'C001', sire:'西门塔尔', date:'2023-11-20', due:'2024-08-25', status:'待确认', birth:'', remark:'' },
+    ]);
+  }
+  if (!DB.get('weights')) {
+    DB.set('weights', [
+      { id:1, date:'2024-01-20', cow:'C001', breed:'西门塔尔', weight:520, remark:'' },
+      { id:2, date:'2024-01-20', cow:'C002', breed:'西门塔尔', weight:480, remark:'' },
+      { id:3, date:'2024-01-20', cow:'C003', breed:'安格斯', weight:380, remark:'' },
+    ]);
+  }
+  if (!DB.get('settings')) {
+    DB.set('settings', { farmName:'刘古拜牛场养殖基地', phone:'', address:'' });
+  }
+}
+
+function today() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// ========== 页面切换 ==========
+document.querySelectorAll('.menu li').forEach(li => {
+  li.addEventListener('click', () => {
+    const page = li.dataset.page;
+    document.querySelectorAll('.menu li').forEach(x => x.classList.remove('active'));
+    li.classList.add('active');
+    document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    if (page === 'dashboard') renderDashboard();
+    if (page === 'settings') renderSettings();
+  });
+});
+
+// ========== 模态框 ==========
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.modal-mask').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+});
+
+// ========== 仪表盘 ==========
+function renderDashboard() {
+  const cows = DB.get('cows', []);
+  const feeds = DB.get('feeds', []);
+  const health = DB.get('health', []);
+  const barns = DB.get('barns', []);
+
+  document.getElementById('stat-cows').textContent = cows.filter(c => c.status !== '已出栏').length;
+  document.getElementById('stat-calf').textContent = cows.filter(c => {
+    if (!c.birth) return false;
+    const age = (new Date() - new Date(c.birth)) / (1000*60*60*24*365);
+    return age < 1 && c.status !== '已出栏';
+  }).length;
+  const totalFeed = feeds.reduce((s,f) => s + (f.qty||0), 0);
+  document.getElementById('stat-feed').textContent = totalFeed.toLocaleString();
+  document.getElementById('stat-sick').textContent = cows.filter(c => c.status === '生病').length;
+
+  // 品种饼图
+  const breedMap = {};
+  cows.forEach(c => {
+    if (c.status === '已出栏') return;
+    breedMap[c.breed] = (breedMap[c.breed] || 0) + 1;
+  });
+  const colors = ['#8bc34a', '#4caf50', '#009688', '#ff9800', '#795548', '#9c27b0'];
+  const pieEl = document.getElementById('breed-pie');
+  const legendEl = document.getElementById('breed-legend');
+  const breedEntries = Object.entries(breedMap);
+  const total = breedEntries.reduce((s, [,n]) => s + n, 0);
+  let gradient = '';
+  let start = 0;
+  legendEl.innerHTML = breedEntries.map(([name, count], i) => {
+    const pct = (count / total * 100).toFixed(1);
+    const end = start + count / total * 360;
+    gradient += `${colors[i % colors.length]} ${start}deg ${end}deg, `;
+    start = end;
+    return `<div><span class="pie-dot" style="background:${colors[i%colors.length]}"></span>${name} ${count}头 (${pct}%)</div>`;
+  }).join('');
+  pieEl.style.background = `conic-gradient(${gradient.slice(0, -2)})`;
+  if (breedEntries.length === 0) pieEl.innerHTML = '<div style="text-align:center;padding-top:60px;color:#999;font-size:12px;">暂无数据</div>';
+
+  // 出栏量柱状图
+  const salesEl = document.getElementById('sales-chart');
+  const months = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ label: (d.getMonth()+1)+'月', value: Math.floor(Math.random() * 10 + 3) });
+  }
+  const maxVal = Math.max(...months.map(m => m.value), 1);
+  salesEl.innerHTML = months.map(m => `
+    <div class="bar-item">
+      <div class="bar" style="height:${m.value/maxVal*100}%">
+        <span class="bar-value">${m.value}</span>
+      </div>
+      <div class="bar-label">${m.label}</div>
+    </div>
+  `).join('');
+
+  // 牛舍存栏柱状图
+  const barnCount = barns.map(b => ({
+    name: b,
+    count: cows.filter(c => c.barn === b && c.status !== '已出栏').length
+  }));
+  const barnEl = document.getElementById('barn-chart');
+  const maxBarn = Math.max(...barnCount.map(b => b.count), 1);
+  barnEl.innerHTML = barnCount.slice(0, 6).map(b => `
+    <div class="bar-item">
+      <div class="bar" style="height:${b.count/maxBarn*100}%">
+        <span class="bar-value">${b.count}</span>
+      </div>
+      <div class="bar-label">${b.name.slice(0,4)}</div>
+    </div>
+  `).join('');
+
+  // 近期健康记录
+  const recent = [...health].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5);
+  document.getElementById('recent-health').innerHTML = recent.map(h => `
+    <tr>
+      <td>${h.cow}</td>
+      <td><span class="tag ${h.type==='治疗'?'tag-red':h.type==='疫苗'?'tag-blue':'tag-green'}">${h.type}</span></td>
+      <td>${h.date}</td>
+      <td><span class="tag ${h.result==='正常'||h.result==='已痊愈'?'tag-green':h.result==='治疗中'?'tag-red':'tag-yellow'}">${h.result}</span></td>
+    </tr>
+  `).join('');
+}
+
+// ========== 牛只管理 ==========
+function renderCows() {
+  const cows = DB.get('cows', []);
+  const search = document.getElementById('cow-search').value.toLowerCase();
+  const barnFilter = document.getElementById('cow-filter-barn').value;
+  const statusFilter = document.getElementById('cow-filter-status').value;
+
+  const filtered = cows.filter(c => {
+    if (search && !c.no.toLowerCase().includes(search) && !c.brand && c.breed.toLowerCase().includes(search)) return false;
+    if (search && !c.no.toLowerCase().includes(search) && !(c.breed && c.breed.toLowerCase().includes(search))) return false;
+    if (barnFilter && c.barn !== barnFilter) return false;
+    if (statusFilter && c.status !== statusFilter) return false;
+    return true;
+  }).sort((a,b) => a.no.localeCompare(b.no));
+
+  const statusTag = s => {
+    const map = { '正常':'tag-green', '育肥中':'tag-blue', '怀孕':'tag-yellow', '生病':'tag-red', '已出栏':'tag-gray' };
+    return `<span class="tag ${map[s]||'tag-gray'}">${s}</span>`;
+  };
+
+  document.getElementById('cows-table').innerHTML = filtered.map(c => `
+    <tr>
+      <td><b>${c.no}</b></td>
+      <td>${c.breed}</td>
+      <td>${c.gender}</td>
+      <td>${c.barn || '-'}</td>
+      <td>${c.birth || '-'}</td>
+      <td>${c.weight || '-'}</td>
+      <td>${statusTag(c.status)}</td>
+      <td>
+        <button class="btn btn-info btn-sm" onclick="editCow(${c.id})">编辑</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCow(${c.id})">删除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function refreshBarnSelects() {
+  const barns = DB.get('barns', []);
+  const html = barns.map(b => `<option value="${b}">${b}</option>`).join('');
+  const filter = document.getElementById('cow-filter-barn');
+  const curVal = filter.value;
+  filter.innerHTML = '<option value="">全部牛舍</option>' + html;
+  filter.value = curVal;
+  document.getElementById('cow-barn').innerHTML = html;
+  document.getElementById('feeding-barn').innerHTML = html;
+}
+
+function openCowModal() {
+  document.getElementById('cow-modal-title').textContent = '添加牛只';
+  document.getElementById('cow-id').value = '';
+  ['no','breed','gender','barn','birth','weight','status','sire','remark'].forEach(f => {
+    document.getElementById('cow-' + f).value = '';
+  });
+  document.getElementById('cow-breed').value = '西门塔尔';
+  document.getElementById('cow-gender').value = '母';
+  document.getElementById('cow-status').value = '正常';
+  openModal('cow-modal');
+}
+
+function editCow(id) {
+  const cow = DB.get('cows', []).find(c => c.id === id);
+  if (!cow) return;
+  document.getElementById('cow-modal-title').textContent = '编辑牛只';
+  document.getElementById('cow-id').value = cow.id;
+  document.getElementById('cow-no').value = cow.no;
+  document.getElementById('cow-breed').value = cow.breed;
+  document.getElementById('cow-gender').value = cow.gender;
+  document.getElementById('cow-barn').value = cow.barn || '';
+  document.getElementById('cow-birth').value = cow.birth || '';
+  document.getElementById('cow-weight').value = cow.weight || '';
+  document.getElementById('cow-status').value = cow.status;
+  document.getElementById('cow-sire').value = cow.sire || '';
+  document.getElementById('cow-remark').value = cow.remark || '';
+  openModal('cow-modal');
+}
+
+function saveCow() {
+  const id = document.getElementById('cow-id').value;
+  const no = document.getElementById('cow-no').value.trim();
+  if (!no) { alert('请输入牛号'); return; }
+  const cows = DB.get('cows', []);
+  const data = {
+    no: no,
+    breed: document.getElementById('cow-breed').value,
+    gender: document.getElementById('cow-gender').value,
+    barn: document.getElementById('cow-barn').value,
+    birth: document.getElementById('cow-birth').value,
+    weight: parseFloat(document.getElementById('cow-weight').value) || 0,
+    status: document.getElementById('cow-status').value,
+    sire: document.getElementById('cow-sire').value,
+    remark: document.getElementById('cow-remark').value
+  };
+  if (id) {
+    const idx = cows.findIndex(c => c.id === parseInt(id));
+    if (idx >= 0) cows[idx] = { ...cows[idx], ...data };
+  } else {
+    data.id = Date.now();
+    cows.push(data);
+  }
+  DB.set('cows', cows);
+  closeModal('cow-modal');
+  renderCows();
+  renderDashboard();
+}
+
+function deleteCow(id) {
+  if (!confirm('确定删除这头牛的记录吗？')) return;
+  const cows = DB.get('cows', []).filter(c => c.id !== id);
+  DB.set('cows', cows);
+  renderCows();
+  renderDashboard();
+}
+
+// ========== 饲料管理 ==========
+function renderFeed() {
+  const feeds = DB.get('feeds', []);
+  const feedings = DB.get('feedings', []);
+
+  const total = feeds.reduce((s,f) => s + (f.qty||0), 0);
+  document.getElementById('feed-total').textContent = total.toLocaleString();
+  document.getElementById('feed-types').textContent = feeds.length;
+  // 估算可使用天数（假设每天用总量/30）
+  const daily = total > 0 ? Math.ceil(total / 30) : 0;
+  document.getElementById('feed-days').textContent = daily ? Math.floor(total / daily) : 0;
+
+  document.getElementById('feed-table').innerHTML = feeds.map(f => `
+    <tr>
+      <td><b>${f.name}</b></td>
+      <td><span class="tag tag-blue">${f.category}</span></td>
+      <td>${f.qty.toLocaleString()}</td>
+      <td>¥${f.price || 0}</td>
+      <td>${f.date || '-'}</td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="deleteFeed(${f.id})">删除</button>
+      </td>
+    </tr>
+  `).join('');
+
+  // 投喂记录
+  document.getElementById('feeding-table').innerHTML = [...feedings].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 30).map(f => `
+    <tr>
+      <td>${f.date}</td>
+      <td>${f.barn}</td>
+      <td>${f.feed}</td>
+      <td>${f.qty}</td>
+      <td>${f.operator || '-'}</td>
+    </tr>
+  `).join('');
+
+  // 饲料下拉
+  document.getElementById('feeding-feed').innerHTML = feeds.map(f => `<option value="${f.name}">${f.name}</option>`).join('');
+}
+
+function openFeedModal() {
+  ['name','category','qty','price','supplier','remark'].forEach(f => {
+    document.getElementById('feed-' + f).value = '';
+  });
+  document.getElementById('feed-category').value = '精饲料';
+  openModal('feed-modal');
+}
+
+function saveFeed() {
+  const name = document.getElementById('feed-name').value.trim();
+  const qty = parseFloat(document.getElementById('feed-qty').value) || 0;
+  if (!name) { alert('请输入饲料名称'); return; }
+  if (!qty) { alert('请输入数量'); return; }
+  const feeds = DB.get('feeds', []);
+  feeds.push({
+    id: Date.now(),
+    name,
+    category: document.getElementById('feed-category').value,
+    qty,
+    price: parseFloat(document.getElementById('feed-price').value) || 0,
+    supplier: document.getElementById('feed-supplier').value,
+    date: today(),
+    remark: document.getElementById('feed-remark').value
+  });
+  DB.set('feeds', feeds);
+  closeModal('feed-modal');
+  renderFeed();
+  renderDashboard();
+}
+
+function deleteFeed(id) {
+  if (!confirm('确定删除该饲料记录？')) return;
+  const feeds = DB.get('feeds', []).filter(f => f.id !== id);
+  DB.set('feeds', feeds);
+  renderFeed();
+  renderDashboard();
+}
+
+function openFeedingModal() {
+  document.getElementById('feeding-date').value = today();
+  document.getElementById('feeding-qty').value = '';
+  document.getElementById('feeding-operator').value = '';
+  openModal('feeding-modal');
+}
+
+function saveFeeding() {
+  const qty = parseFloat(document.getElementById('feeding-qty').value) || 0;
+  if (!qty) { alert('请输入用量'); return; }
+  const feedings = DB.get('feedings', []);
+  feedings.push({
+    id: Date.now(),
+    date: document.getElementById('feeding-date').value,
+    barn: document.getElementById('feeding-barn').value,
+    feed: document.getElementById('feeding-feed').value,
+    qty,
+    operator: document.getElementById('feeding-operator').value
+  });
+  // 扣减库存
+  const feeds = DB.get('feeds', []);
+  const f = feeds.find(x => x.name === document.getElementById('feeding-feed').value);
+  if (f) f.qty = Math.max(0, (f.qty || 0) - qty);
+  DB.set('feeds', feeds);
+  DB.set('feedings', feedings);
+  closeModal('feeding-modal');
+  renderFeed();
+  renderDashboard();
+}
+
+// ========== 健康记录 ==========
+function renderHealth() {
+  const health = DB.get('health', []);
+  const typeFilter = document.getElementById('health-filter-type').value;
+  const filtered = health.filter(h => !typeFilter || h.type === typeFilter)
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  const typeTag = t => {
+    const map = { '疫苗':'tag-blue', '驱虫':'tag-green', '体检':'tag-yellow', '治疗':'tag-red' };
+    return `<span class="tag ${map[t]||'tag-gray'}">${t}</span>`;
+  };
+  const resultTag = r => {
+    const map = { '正常':'tag-green', '已痊愈':'tag-green', '异常':'tag-yellow', '治疗中':'tag-red' };
+    return `<span class="tag ${map[r]||'tag-gray'}">${r}</span>`;
+  };
+
+  document.getElementById('health-table').innerHTML = filtered.map(h => `
+    <tr>
+      <td>${h.date}</td>
+      <td><b>${h.cow}</b></td>
+      <td>${typeTag(h.type)}</td>
+      <td>${h.content || '-'}</td>
+      <td>${h.vet || '-'}</td>
+      <td>${resultTag(h.result)}</td>
+      <td>
+        <button class="btn btn-info btn-sm" onclick="editHealth(${h.id})">编辑</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteHealth(${h.id})">删除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openHealthModal() {
+  document.getElementById('health-modal-title').textContent = '添加健康记录';
+  document.getElementById('health-id').value = '';
+  ['date','cow','type','vet','content','result','next','remark'].forEach(f => {
+    document.getElementById('health-' + f).value = '';
+  });
+  document.getElementById('health-date').value = today();
+  document.getElementById('health-type').value = '疫苗';
+  document.getElementById('health-result').value = '正常';
+  openModal('health-modal');
+}
+
+function editHealth(id) {
+  const h = DB.get('health', []).find(x => x.id === id);
+  if (!h) return;
+  document.getElementById('health-modal-title').textContent = '编辑健康记录';
+  document.getElementById('health-id').value = h.id;
+  document.getElementById('health-date').value = h.date;
+  document.getElementById('health-cow').value = h.cow;
+  document.getElementById('health-type').value = h.type;
+  document.getElementById('health-vet').value = h.vet || '';
+  document.getElementById('health-content').value = h.content || '';
+  document.getElementById('health-result').value = h.result;
+  document.getElementById('health-next').value = h.next || '';
+  document.getElementById('health-remark').value = h.remark || '';
+  openModal('health-modal');
+}
+
+function saveHealth() {
+  const id = document.getElementById('health-id').value;
+  const cow = document.getElementById('health-cow').value.trim();
+  const date = document.getElementById('health-date').value;
+  if (!cow || !date) { alert('请填写牛号和日期'); return; }
+  const health = DB.get('health', []);
+  const data = {
+    date, cow,
+    type: document.getElementById('health-type').value,
+    vet: document.getElementById('health-vet').value,
+    content: document.getElementById('health-content').value,
+    result: document.getElementById('health-result').value,
+    next: document.getElementById('health-next').value,
+    remark: document.getElementById('health-remark').value
+  };
+  if (id) {
+    const idx = health.findIndex(h => h.id === parseInt(id));
+    if (idx >= 0) health[idx] = { ...health[idx], ...data };
+  } else {
+    data.id = Date.now();
+    health.push(data);
+  }
+  DB.set('health', health);
+  closeModal('health-modal');
+  renderHealth();
+  renderDashboard();
+}
+
+function deleteHealth(id) {
+  if (!confirm('确定删除该记录？')) return;
+  const health = DB.get('health', []).filter(h => h.id !== id);
+  DB.set('health', health);
+  renderHealth();
+  renderDashboard();
+}
+
+// ========== 繁育记录 ==========
+function renderBreeding() {
+  const breeding = DB.get('breeding', []);
+  const statusTag = s => {
+    const map = { '待确认':'tag-yellow', '已怀孕':'tag-green', '已产犊':'tag-blue', '未受孕':'tag-gray', '流产':'tag-red' };
+    return `<span class="tag ${map[s]||'tag-gray'}">${s}</span>`;
+  };
+  document.getElementById('breeding-table').innerHTML = [...breeding]
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .map(b => `
+    <tr>
+      <td><b>${b.cow}</b></td>
+      <td>${b.sire || '-'}</td>
+      <td>${b.date || '-'}</td>
+      <td>${b.due || '-'}</td>
+      <td>${statusTag(b.status)}</td>
+      <td>${b.birth || '-'}</td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="deleteBreeding(${b.id})">删除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openBreedingModal() {
+  ['cow','sire','date','due','status','birth','remark'].forEach(f => {
+    document.getElementById('breeding-' + f).value = '';
+  });
+  document.getElementById('breeding-date').value = today();
+  document.getElementById('breeding-status').value = '待确认';
+  openModal('breeding-modal');
+}
+
+function saveBreeding() {
+  const cow = document.getElementById('breeding-cow').value.trim();
+  if (!cow) { alert('请输入母牛编号'); return; }
+  const breeding = DB.get('breeding', []);
+  breeding.push({
+    id: Date.now(),
+    cow,
+    sire: document.getElementById('breeding-sire').value,
+    date: document.getElementById('breeding-date').value,
+    due: document.getElementById('breeding-due').value,
+    status: document.getElementById('breeding-status').value,
+    birth: document.getElementById('breeding-birth').value,
+    remark: document.getElementById('breeding-remark').value
+  });
+  DB.set('breeding', breeding);
+  closeModal('breeding-modal');
+  renderBreeding();
+}
+
+function deleteBreeding(id) {
+  if (!confirm('确定删除该繁育记录？')) return;
+  const breeding = DB.get('breeding', []).filter(b => b.id !== id);
+  DB.set('breeding', breeding);
+  renderBreeding();
+}
+
+// ========== 体重记录 ==========
+function renderWeight() {
+  const weights = DB.get('weights', []);
+  const search = document.getElementById('weight-search').value.toLowerCase();
+  const filtered = weights.filter(w => !search || w.cow.toLowerCase().includes(search))
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  // 计算较上次
+  const cowMap = {};
+  [...filtered].sort((a,b) => a.date.localeCompare(b.date)).forEach(w => {
+    const last = cowMap[w.cow];
+    w.diff = last ? (w.weight - last) : null;
+    cowMap[w.cow] = w.weight;
+  });
+
+  document.getElementById('weight-table').innerHTML = [...filtered].sort((a,b) => b.date.localeCompare(a.date)).map(w => {
+    let diffHtml = '-';
+    if (w.diff !== null && w.diff !== undefined) {
+      if (w.diff > 0) diffHtml = `<span style="color:#388e3c;">+${w.diff}kg</span>`;
+      else if (w.diff < 0) diffHtml = `<span style="color:#c62828;">${w.diff}kg</span>`;
+      else diffHtml = '<span style="color:#888;">持平</span>';
+    }
+    return `
+    <tr>
+      <td>${w.date}</td>
+      <td><b>${w.cow}</b></td>
+      <td>${w.breed || '-'}</td>
+      <td>${w.weight}</td>
+      <td>${diffHtml}</td>
+      <td>${w.remark || '-'}</td>
+    </tr>
+  `}).join('');
+}
+
+function openWeightModal() {
+  ['date','cow','kg','breed','remark'].forEach(f => {
+    document.getElementById('weight-' + f).value = '';
+  });
+  document.getElementById('weight-date').value = today();
+  openModal('weight-modal');
+}
+
+function saveWeight() {
+  const cow = document.getElementById('weight-cow').value.trim();
+  const weight = parseFloat(document.getElementById('weight-kg').value) || 0;
+  const date = document.getElementById('weight-date').value;
+  if (!cow || !weight || !date) { alert('请填写日期、牛号和体重'); return; }
+  const weights = DB.get('weights', []);
+  weights.push({
+    id: Date.now(),
+    date, cow, weight,
+    breed: document.getElementById('weight-breed').value,
+    remark: document.getElementById('weight-remark').value
+  });
+  // 同步更新牛只体重
+  const cows = DB.get('cows', []);
+  const c = cows.find(x => x.no === cow);
+  if (c) { c.weight = weight; DB.set('cows', cows); }
+  DB.set('weights', weights);
+  closeModal('weight-modal');
+  renderWeight();
+  renderCows();
+}
+
+// ========== 系统设置 ==========
+function renderSettings() {
+  const s = DB.get('settings', {});
+  document.getElementById('set-farm-name').value = s.farmName || '';
+  document.getElementById('set-phone').value = s.phone || '';
+  document.getElementById('set-address').value = s.address || '';
+
+  const barns = DB.get('barns', []);
+  document.getElementById('barn-list').innerHTML = barns.map((b, i) => `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 15px; background:#f9f9f9; border-radius:6px; margin-bottom:8px;">
+      <span>🐄 ${b}</span>
+      <button class="btn btn-danger btn-sm" onclick="deleteBarn(${i})">删除</button>
+    </div>
+  `).join('');
+}
+
+function saveSettings() {
+  DB.set('settings', {
+    farmName: document.getElementById('set-farm-name').value,
+    phone: document.getElementById('set-phone').value,
+    address: document.getElementById('set-address').value
+  });
+  alert('设置已保存！');
+}
+
+function addBarn() {
+  const name = document.getElementById('new-barn-name').value.trim();
+  if (!name) { alert('请输入牛舍名称'); return; }
+  const barns = DB.get('barns', []);
+  if (barns.includes(name)) { alert('该牛舍已存在'); return; }
+  barns.push(name);
+  DB.set('barns', barns);
+  document.getElementById('new-barn-name').value = '';
+  renderSettings();
+  refreshBarnSelects();
+}
+
+function deleteBarn(i) {
+  if (!confirm('确定删除该牛舍？')) return;
+  const barns = DB.get('barns', []);
+  barns.splice(i, 1);
+  DB.set('barns', barns);
+  renderSettings();
+  refreshBarnSelects();
+}
+
+function exportData() {
+  const data = {
+    cows: DB.get('cows', []),
+    barns: DB.get('barns', []),
+    feeds: DB.get('feeds', []),
+    feedings: DB.get('feedings', []),
+    health: DB.get('health', []),
+    breeding: DB.get('breeding', []),
+    weights: DB.get('weights', []),
+    settings: DB.get('settings', {}),
+    exportTime: new Date().toLocaleString()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `刘古拜牛场数据备份_${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!confirm('导入数据会覆盖现有数据，确定继续？')) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      Object.keys(data).forEach(key => {
+        if (key !== 'exportTime') DB.set(key, data[key]);
+      });
+      alert('导入成功！');
+      location.reload();
+    } catch(err) {
+      alert('文件格式错误：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function clearAllData() {
+  if (confirm('真的要清空所有数据吗？此操作不可恢复！')) {
+    if (confirm('再次确认：所有牛只、饲料、健康记录将被删除！')) {
+      ['cows','barns','feeds','feedings','health','breeding','weights','settings'].forEach(k => {
+        localStorage.removeItem('liugubai_' + k);
+      });
+      alert('数据已清空，页面将刷新');
+      location.reload();
+    }
+  }
+}
+
+// ========== 初始化 ==========
+initDefaultData();
+refreshBarnSelects();
+renderDashboard();
+renderCows();
+renderFeed();
+renderHealth();
+renderBreeding();
+renderWeight();
+</script>
+
+</body>
+</html>
