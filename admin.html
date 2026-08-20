@@ -1125,35 +1125,98 @@ function readCsvFile(file) {
     alert('请选择 CSV 文件！\n（Excel 里另存为 CSV UTF-8 格式）');
     return;
   }
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const text = e.target.result;
-    const rows = parseCSV(text);
-    if (rows.length < 2) { alert('CSV 文件内容为空或格式不对'); return; }
 
-    const headers = rows[0];
-    const dataRows = rows.slice(1);
-    _importData = dataRows.map(r => mapCowRow(r, headers)).filter(x => x.tag);
+  // 先按 UTF-8 读，不行再试 GBK
+  const tryDecode = (encoding) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        // 检查是否有乱码（如果包含大量替换字符 或 表头解析后列名为空，说明编码不对）
+        const rows = parseCSV(text);
+        if (rows.length >= 2 && rows[0].some(h => h && h.trim() && !h.includes('\uFFFD'))) {
+          resolve({ text, encoding });
+        } else {
+          reject(new Error('encoding mismatch'));
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsText(file, encoding);
+    });
+  };
 
-    if (!_importData.length) { alert('没有解析到有效数据（耳标是必填项）'); return; }
+  // 先试 UTF-8，再试 GBK
+  tryDecode('UTF-8')
+    .then(r => processCsv(r.text, r.encoding))
+    .catch(() => tryDecode('GBK')
+      .then(r => processCsv(r.text, r.encoding))
+      .catch(() => {
+        // 最后再用 UTF-8 硬试一次，哪怕乱码也让用户看看
+        const reader = new FileReader();
+        reader.onload = (e) => processCsv(e.target.result, 'UTF-8');
+        reader.readAsText(file, 'UTF-8');
+      })
+    );
+}
 
-    // 显示预览
-    document.getElementById('import-preview').style.display = 'block';
-    const thead = document.getElementById('import-thead');
-    const tbody = document.getElementById('import-tbody');
-    const previewCols = ['tag', 'name', 'breed', 'gender', 'weight', 'barn', 'status'];
-    const colNames = { tag:'耳标', name:'名字', breed:'品种', gender:'性别', weight:'体重', barn:'牛舍', status:'状态' };
-    thead.innerHTML = '<tr>' + previewCols.map(c => `<th style="padding:6px 8px;background:#f5f7fa;">${colNames[c]}</th>`).join('') + '</tr>';
-    tbody.innerHTML = _importData.slice(0, 5).map(r =>
-      '<tr>' + previewCols.map(c => `<td style="padding:6px 8px;border-bottom:1px solid #eee;">${r[c] || '-'}</td>`).join('') + '</tr>'
-    ).join('');
+function processCsv(text, encoding) {
+  // 去掉 BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
 
-    document.getElementById('import-summary').innerHTML =
-      `共解析到 <b style="color:#1b5e20;">${_importData.length}</b> 条牛只数据`;
+  const rows = parseCSV(text);
+  if (rows.length < 2) {
+    alert(`CSV 文件内容为空或格式不对\n\n检测到编码：${encoding}\n解析到行数：${rows.length}`);
+    return;
+  }
+
+  const headers = rows[0];
+  const dataRows = rows.slice(1);
+  _importData = dataRows.map(r => mapCowRow(r, headers)).filter(x => x.tag);
+
+  // 显示预览
+  document.getElementById('import-preview').style.display = 'block';
+  const thead = document.getElementById('import-thead');
+  const tbody = document.getElementById('import-tbody');
+  const previewCols = ['tag', 'name', 'breed', 'gender', 'weight', 'barn', 'status'];
+  const colNames = { tag:'耳标', name:'名字', breed:'品种', gender:'性别', weight:'体重', barn:'牛舍', status:'状态' };
+  thead.innerHTML = '<tr>' + previewCols.map(c => `<th style="padding:6px 8px;background:#f5f7fa;">${colNames[c]}</th>`).join('') + '</tr>';
+  tbody.innerHTML = _importData.slice(0, 5).map(r =>
+    '<tr>' + previewCols.map(c => `<td style="padding:6px 8px;border-bottom:1px solid #eee;">${r[c] || '-'}</td>`).join('') + '</tr>'
+  ).join('');
+
+  const emptyTagCount = dataRows.length - _importData.length;
+  let summary = `编码：${encoding} ｜ 共解析到 <b style="color:#1b5e20;">${dataRows.length}</b> 行数据`;
+  if (emptyTagCount > 0) {
+    summary += `<br><span style="color:#e53935;">⚠️ ${emptyTagCount} 行缺少耳标（已跳过）</span>`;
+  }
+  if (_importData.length > 0) {
+    summary += `<br><b style="color:#1b5e20;">✅ 有效数据：${_importData.length} 条</b>`;
+  }
+  document.getElementById('import-summary').innerHTML = summary;
+
+  // 显示识别到的表头（方便排查）
+  document.getElementById('import-summary').innerHTML +=
+    `<br><div style="margin-top:6px;font-size:11px;color:#999;">识别到表头：${headers.map(h => `"${h.trim()}"`).join('、')}</div>`;
+
+  if (_importData.length > 0) {
     document.getElementById('import-confirm-btn').disabled = false;
     document.getElementById('import-confirm-btn').style.opacity = '1';
-  };
-  reader.readAsText(file, 'UTF-8');
+  } else {
+    // 没有有效数据，给出详细提示
+    setTimeout(() => {
+      alert(
+        `没有解析到有效数据！\n\n` +
+        `检测编码：${encoding}\n` +
+        `总行数：${dataRows.length} 行\n` +
+        `识别到的表头：\n${headers.map((h,i) => `  第${i+1}列："${h.trim()}"`).join('\n')}\n\n` +
+        `可能的原因：\n` +
+        `1. 第一列不是耳标列（耳标是必填项）\n` +
+        `2. 列名不对，支持的列名：耳标/tag/耳标号\n` +
+        `3. 编码不兼容，试试 Excel 另存为「CSV UTF-8」\n\n` +
+        `建议：点「下载模板」，用模板填数据再导入`
+      );
+    }, 100);
+  }
 }
 
 async function confirmImport() {
