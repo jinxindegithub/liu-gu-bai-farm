@@ -1055,7 +1055,10 @@ function downloadCsvTemplate() {
 }
 
 function parseCSV(text) {
-  // 简单 CSV 解析，支持引号
+  // 处理各种换行符：\n、\r\n、\r
+  // 先把 \r\n 统一成 \n，再把单独的 \r 也换成 \n
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  
   const rows = [];
   let cur = [], field = '', inQuote = false;
   for (let i = 0; i < text.length; i++) {
@@ -1068,12 +1071,12 @@ function parseCSV(text) {
       if (c === '"') inQuote = true;
       else if (c === ',') { cur.push(field); field = ''; }
       else if (c === '\n') { cur.push(field); rows.push(cur); cur = []; field = ''; }
-      else if (c === '\r') { /* skip */ }
       else field += c;
     }
   }
-  if (field || cur.length) { cur.push(field); rows.push(cur); }
-  return rows.filter(r => r.some(x => x && x.trim()));
+  if (field !== '' || cur.length > 0) { cur.push(field); rows.push(cur); }
+  // 去掉空行
+  return rows.filter(r => r.some(x => x !== undefined && x.trim() !== ''));
 }
 
 function mapCowRow(row, headers) {
