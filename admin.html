@@ -533,15 +533,20 @@
     </div>
     <div class="card" id="user-mgmt-card">
       <h3>👤 账号管理 <small style="font-size:12px;color:#888;font-weight:normal;">管理员可见</small></h3>
-      <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
-        <input type="text" id="new-user-name" placeholder="账号" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; width:140px; font-size:13px;">
-        <input type="password" id="new-user-pass" placeholder="密码" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; width:140px; font-size:13px;">
-        <select id="new-user-role" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
-          <option value="viewer">查看员（只能看）</option>
-          <option value="operator">操作员（可录入数据）</option>
-          <option value="admin">管理员（全部权限）</option>
-        </select>
-        <button class="btn btn-primary" onclick="addUser()">添加账号</button>
+      <div style="background:#f5f7fa; border-radius:8px; padding:15px; margin-bottom:20px;">
+        <div style="font-weight:bold; color:#1b5e20; margin-bottom:10px; font-size:14px;">➕ 添加新账号</div>
+        <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; align-items:center;">
+          <input type="text" id="new-user-name" placeholder="账号" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; width:130px; font-size:13px;">
+          <input type="password" id="new-user-pass" placeholder="密码" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; width:130px; font-size:13px;">
+          <select id="new-user-role" onchange="onRoleChange()" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+            <option value="viewer">查看员（自定义权限）</option>
+            <option value="operator">操作员（自定义权限+可编辑）</option>
+            <option value="admin">管理员（全部权限）</option>
+          </select>
+          <button class="btn btn-primary" onclick="addUser()">添加账号</button>
+        </div>
+        <div style="font-size:12px; color:#666; margin-bottom:8px;">📋 页面权限分配（勾选后该账号才能看到对应菜单）：</div>
+        <div id="new-user-perms" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px;"></div>
       </div>
       <div id="user-list"><div class="loading">加载中...</div></div>
     </div>
@@ -656,7 +661,12 @@ function doLogin() {
     if (!user || user.password !== password) {
       throw new Error('账号或密码错误');
     }
-    sessionStorage.setItem('farm_user', JSON.stringify({ id: user.id, username: user.username, role: user.role }));
+    sessionStorage.setItem('farm_user', JSON.stringify({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      permissions: user.permissions ? JSON.parse(user.permissions) : {}
+    }));
     document.getElementById('login-page').classList.add('hide');
     document.getElementById('user-name').textContent = user.username;
     document.getElementById('user-role').textContent = { admin: '超级管理员', operator: '操作员', viewer: '查看员' }[user.role] || user.role;
@@ -687,22 +697,84 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// ========== 页面权限配置 ==========
+const PAGES = [
+  { key: 'dashboard', name: '数据概览', icon: '📊' },
+  { key: 'cows', name: '牛只管理', icon: '🐄' },
+  { key: 'feed', name: '饲料管理', icon: '🌾' },
+  { key: 'health', name: '健康记录', icon: '💉' },
+  { key: 'breeding', name: '繁育记录', icon: '🐮' },
+  { key: 'weight', name: '体重记录', icon: '⚖️' },
+  { key: 'settings', name: '系统设置', icon: '⚙️' },
+];
+
+// 检查用户是否有权访问某个页面
+function hasPagePerm(pageKey) {
+  const user = getCurrentUser();
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  // 非 admin 从 permissions 字段读取
+  const perms = user.permissions || {};
+  return !!perms[pageKey];
+}
+
+// 应用权限：控制菜单显隐、按钮显隐
+function applyPermissions() {
+  const user = getCurrentUser();
+  if (!user) return;
+
+  // 控制侧边栏菜单
+  document.querySelectorAll('.menu li').forEach(li => {
+    const page = li.dataset.page;
+    li.style.display = hasPagePerm(page) ? '' : 'none';
+  });
+
+  // 控制页面（把没有权限的页面彻底隐藏，防止通过URL直接访问）
+  PAGES.forEach(p => {
+    const pageEl = document.getElementById('page-' + p.key);
+    if (pageEl) pageEl.setAttribute('data-perm', hasPagePerm(p.key) ? '1' : '0');
+  });
+
+  // 如果当前激活页面没有权限，跳到第一个有权限的页面
+  const activePage = document.querySelector('.page.active');
+  if (activePage && activePage.getAttribute('data-perm') === '0') {
+    const firstPerm = PAGES.find(p => hasPagePerm(p.key));
+    if (firstPerm) switchToPage(firstPerm.key);
+  }
+
+  // 数据操作按钮：非 admin 且非 operator 的，隐藏所有增删改按钮
+  const canEdit = user.role === 'admin' || user.role === 'operator';
+  if (!canEdit) {
+    // 隐藏所有 .btn-primary 和 .btn-danger 按钮（新增/删除）
+    document.querySelectorAll('.btn-primary, .btn-danger').forEach(b => {
+      // 跳过登录按钮
+      if (b.id === 'login-btn') return;
+      b.style.display = 'none';
+    });
+  }
+}
+
+function switchToPage(page) {
+  document.querySelectorAll('.menu li').forEach(x => {
+    x.classList.toggle('active', x.dataset.page === page);
+  });
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'cows') renderCows();
+  if (page === 'feed') renderFeed();
+  if (page === 'health') renderHealth();
+  if (page === 'breeding') renderBreeding();
+  if (page === 'weight') renderWeight();
+  if (page === 'settings') renderSettings();
+}
+
 // ========== 菜单切换 ==========
 document.querySelectorAll('.menu li').forEach(li => {
   li.addEventListener('click', () => {
     const page = li.dataset.page;
-    document.querySelectorAll('.menu li').forEach(x => x.classList.remove('active'));
-    document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
-    li.classList.add('active');
-    document.getElementById('page-' + page).classList.add('active');
-    // 切换到对应页时刷新数据
-    if (page === 'dashboard') renderDashboard();
-    if (page === 'cows') renderCows();
-    if (page === 'feed') renderFeed();
-    if (page === 'health') renderHealth();
-    if (page === 'breeding') renderBreeding();
-    if (page === 'weight') renderWeight();
-    if (page === 'settings') renderSettings();
+    if (!hasPagePerm(page)) return; // 没权限直接忽略
+    switchToPage(page);
   });
 });
 
@@ -1392,38 +1464,140 @@ async function renderSettings() {
   if (cur?.role === 'admin') renderUsers();
 }
 
+// 渲染权限复选框
+function renderPermCheckboxes(containerId, perms = {}) {
+  const box = document.getElementById(containerId);
+  if (!box) return;
+  box.innerHTML = PAGES.map(p => `
+    <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:13px; padding:4px 8px; background:#fff; border-radius:4px; border:1px solid #e0e0e0;">
+      <input type="checkbox" class="perm-cb" value="${p.key}" ${perms[p.key] ? 'checked' : ''}> ${p.icon} ${p.name}
+    </label>
+  `).join('');
+}
+
+// 收集权限复选框的值
+function collectPerms(containerId) {
+  const box = document.getElementById(containerId);
+  if (!box) return {};
+  const perms = {};
+  box.querySelectorAll('.perm-cb').forEach(cb => { perms[cb.value] = cb.checked; });
+  return perms;
+}
+
+// 角色切换时：admin 禁用权限选择（全权限）
+function onRoleChange() {
+  const role = document.getElementById('new-user-role').value;
+  const permsBox = document.getElementById('new-user-perms');
+  if (!permsBox) return;
+  if (role === 'admin') {
+    permsBox.style.opacity = '0.5';
+    permsBox.querySelectorAll('.perm-cb').forEach(cb => { cb.checked = true; cb.disabled = true; });
+  } else {
+    permsBox.style.opacity = '1';
+    permsBox.querySelectorAll('.perm-cb').forEach(cb => { cb.disabled = false; });
+  }
+}
+
 async function renderUsers() {
   try {
+    // 初始化新增账号的权限复选框
+    renderPermCheckboxes('new-user-perms', {});
+
     const users = await SUPA.list('farm_users', 'order=id.asc');
     const roleMap = { admin: '超级管理员', operator: '操作员', viewer: '查看员' };
     const roleDesc = {
-      admin: '全部权限，可管理账号',
-      operator: '可录入和修改数据',
-      viewer: '仅可查看数据'
+      admin: '全部权限 + 账号管理',
+      operator: '可编辑数据 + 自定义页面',
+      viewer: '仅可查看 + 自定义页面'
     };
 
     document.getElementById('user-list').innerHTML = `
       <table>
         <thead><tr><th>账号</th><th>角色</th><th>权限说明</th><th>操作</th></tr></thead>
-        <tbody>${users.map(u => `
+        <tbody>${users.map(u => {
+          const perms = u.permissions ? JSON.parse(u.permissions) : {};
+          const permCount = u.role === 'admin' ? '全部' : Object.values(perms).filter(Boolean).length + '/' + PAGES.length;
+          return `
           <tr>
             <td><b>${u.username}</b>${u.username === 'admin' ? ' <span class="tag tag-yellow">内置</span>' : ''}</td>
             <td><span class="tag ${u.role === 'admin' ? 'tag-red' : u.role === 'operator' ? 'tag-blue' : 'tag-green'}">${roleMap[u.role] || u.role}</span></td>
-            <td style="color:#888; font-size:12px;">${roleDesc[u.role] || ''}</td>
+            <td style="color:#888; font-size:12px;">
+              ${roleDesc[u.role] || ''}<br>
+              <span style="color:#689f38;">📄 可访问页面：${permCount}</span>
+            </td>
             <td>
               ${u.username === 'admin'
-                ? '<span style="color:#aaa; font-size:12px;">不可删除</span>'
-                : `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">删除</button>
-                   <button class="btn btn-warn btn-sm" onclick="resetUserPwd(${u.id}, '${u.username}')">重置密码</button>`
+                ? '<span style="color:#aaa; font-size:12px;">内置管理员</span>'
+                : `<button class="btn btn-warn btn-sm" onclick="showPermModal(${u.id}, '${u.username}', '${u.role}')">设置权限</button>
+                   <button class="btn btn-sm" onclick="resetUserPwd(${u.id}, '${u.username}')" style="background:#9e9e9e;color:#fff;">重置密码</button>
+                   <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">删除</button>`
               }
             </td>
-          </tr>
-        `).join('')}</tbody>
+          </tr>`;
+        }).join('')}</tbody>
       </table>
     `;
   } catch(e) {
     document.getElementById('user-list').innerHTML = `<div class="loading">加载失败：${e.message}</div>`;
   }
+}
+
+// 权限设置弹窗
+function showPermModal(userId, username, role) {
+  // 先读取当前权限
+  SUPA.list('farm_users', `id=eq.${userId}`).then(users => {
+    if (!users[0]) return;
+    const currentPerms = users[0].permissions ? JSON.parse(users[0].permissions) : {};
+
+    const html = `
+      <div id="modal-mask" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:10px;padding:25px;width:90%;max-width:480px;">
+          <h3 style="color:#1b5e20;margin-bottom:5px;">设置账号权限</h3>
+          <p style="color:#888;font-size:13px;margin-bottom:15px;">账号：<b>${username}</b>（${role === 'admin' ? '超级管理员' : role === 'operator' ? '操作员' : '查看员'}）</p>
+
+          <div style="background:#fff8e1; padding:10px 12px; border-radius:6px; margin-bottom:15px; font-size:12px; color:#f57f17;">
+            💡 勾选的页面会在侧边栏显示，未勾选的页面该账号看不到也无法访问。
+            ${role === 'operator' ? '<br>操作员可以编辑有权限页面的数据。' : ''}
+            ${role === 'viewer' ? '<br>查看员只能查看，不能修改或删除数据。' : ''}
+          </div>
+
+          <div style="font-size:13px;font-weight:bold;margin-bottom:8px;color:#333;">📋 可访问页面：</div>
+          <div id="perm-edit-box" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin-bottom:20px;"></div>
+
+          <div style="display:flex; gap:8px; margin-bottom:15px;">
+            <button class="btn btn-sm" onclick="selectAllPerms(true)" style="background:#78909c;color:#fff;">全选</button>
+            <button class="btn btn-sm" onclick="selectAllPerms(false)" style="background:#78909c;color:#fff;">全不选</button>
+          </div>
+
+          <div style="text-align:right;display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="savePerms(${userId}, '${username}')">保存权限</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstElementChild);
+    renderPermCheckboxes('perm-edit-box', currentPerms);
+  });
+}
+
+function selectAllPerms(checked) {
+  document.querySelectorAll('#perm-edit-box .perm-cb').forEach(cb => { cb.checked = checked; });
+}
+
+async function savePerms(userId, username) {
+  const perms = collectPerms('perm-edit-box');
+  const hasAny = Object.values(perms).some(Boolean);
+  if (!hasAny) { alert('至少要勾选一个页面！'); return; }
+
+  try {
+    await SUPA.update('farm_users', userId, { permissions: JSON.stringify(perms) });
+    closeModal();
+    renderUsers();
+    alert(`${username} 的权限已更新！\n该账号重新登录后生效。`);
+  } catch(e) { alert('保存失败：' + e.message); }
 }
 
 async function addUser() {
@@ -1435,14 +1609,27 @@ async function addUser() {
   if (name.length < 2) { alert('账号至少2位'); return; }
   if (pass.length < 4) { alert('密码至少4位'); return; }
 
+  const perms = role === 'admin'
+    ? PAGES.reduce((o, p) => { o[p.key] = true; return o; }, {})
+    : collectPerms('new-user-perms');
+
+  if (role !== 'admin' && !Object.values(perms).some(Boolean)) {
+    alert('至少勾选一个页面权限！'); return;
+  }
+
   try {
-    // 先检查是否存在
     const existing = await SUPA.list('farm_users', `username=eq.${encodeURIComponent(name)}`);
     if (existing.length) { alert('该账号已存在'); return; }
 
-    await SUPA.insert('farm_users', { username: name, password: pass, role });
+    await SUPA.insert('farm_users', {
+      username: name,
+      password: pass,
+      role,
+      permissions: JSON.stringify(perms)
+    });
     document.getElementById('new-user-name').value = '';
     document.getElementById('new-user-pass').value = '';
+    renderPermCheckboxes('new-user-perms', {});
     renderUsers();
     alert(`账号 ${name} 创建成功！`);
   } catch(e) { alert('创建失败：' + e.message); }
@@ -1492,6 +1679,7 @@ async function initApp() {
   await renderBreeding();
   await renderWeight();
   await renderSettings();
+  applyPermissions();
 }
 
 // 检查登录状态
