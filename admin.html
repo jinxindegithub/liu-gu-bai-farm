@@ -431,7 +431,10 @@
   <div class="page" id="page-cows">
     <div class="page-title">
       🐄 牛只管理
-      <button class="btn btn-primary" onclick="showCowModal()">+ 添加牛只</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-warn" onclick="showImportModal()">📥 批量导入</button>
+        <button class="btn btn-primary" onclick="showCowModal()">+ 添加牛只</button>
+      </div>
     </div>
     <div class="card">
       <div class="filter-bar">
@@ -963,6 +966,7 @@ async function renderCows() {
 
     let filter = 'order=id.desc';
     const cows = await SUPA.list('cows', filter);
+    window._allCows = cows; // 缓存所有牛只，供下拉选择用
 
     const filtered = cows.filter(c => {
       if (search && !(c.tag?.toLowerCase().includes(search) || c.name?.toLowerCase().includes(search))) return false;
@@ -994,6 +998,199 @@ async function renderCows() {
   } catch(e) {
     document.getElementById('cow-list').innerHTML = `<div class="loading">加载失败：${e.message}</div>`;
   }
+}
+
+// ========== 牛只批量导入 ==========
+function showImportModal() {
+  const html = `
+    <div id="modal-mask" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:10px;padding:25px;width:90%;max-width:550px;max-height:90vh;overflow-y:auto;">
+        <h3 style="color:#1b5e20;margin-bottom:10px;">📥 批量导入牛只</h3>
+        <div style="background:#e3f2fd;color:#1565c0;padding:10px 12px;border-radius:6px;font-size:12px;margin-bottom:15px;line-height:1.6;">
+          <b>使用说明：</b><br>
+          1. 支持 CSV 文件（Excel 另存为 CSV UTF-8 格式）<br>
+          2. 第一行是表头，列名参考下方示例<br>
+          3. <b>耳标(tag)是必填项</b>，重复耳标会自动跳过<br>
+          4. <a href="javascript:void(0)" onclick="downloadCsvTemplate()" style="color:#1565c0;text-decoration:underline;">点此下载模板</a>
+        </div>
+        <div style="border:2px dashed #bbb;border-radius:8px;padding:30px;text-align:center;cursor:pointer;background:#fafafa;"
+             ondragover="event.preventDefault();this.style.background='#e8f5e9';"
+             ondragleave="this.style.background='#fafafa';"
+             ondrop="handleCsvDrop(event);this.style.background='#fafafa';"
+             onclick="document.getElementById('csv-file').click()">
+          <div style="font-size:36px;margin-bottom:10px;">📄</div>
+          <div style="color:#666;font-size:14px;">点击选择文件或拖拽 CSV 到此处</div>
+          <input type="file" id="csv-file" accept=".csv" style="display:none;" onchange="handleCsvFile(event)">
+        </div>
+        <div id="import-preview" style="margin-top:15px;display:none;">
+          <div style="font-weight:bold;margin-bottom:8px;font-size:13px;">📊 预览（前5条）：</div>
+          <div style="overflow-x:auto;max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:6px;">
+            <table style="font-size:12px;"><thead id="import-thead"></thead><tbody id="import-tbody"></tbody></table>
+          </div>
+          <div id="import-summary" style="margin-top:10px;font-size:13px;color:#666;"></div>
+        </div>
+        <div style="text-align:right;margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" id="import-confirm-btn" onclick="confirmImport()" disabled style="opacity:0.5;">确认导入</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div.firstElementChild);
+}
+
+let _importData = [];
+
+function downloadCsvTemplate() {
+  const headers = ['耳标(tag)', '名字(name)', '品种(breed)', '性别(gender)', '出生日期(birth_date)', '体重(weight_kg)', '牛舍(barn)', '状态(status)', '来源(source)', '入场日期(entry_date)', '备注(note)'];
+  const sample = ['001', '小花', '西门塔尔', '母', '2023-05-10', '450', '1号舍', '正常', '自繁', '2023-06-01', '示例数据'];
+  const csv = '\ufeff' + headers.join(',') + '\n' + sample.join(',');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '牛只导入模板.csv';
+  a.click();
+}
+
+function parseCSV(text) {
+  // 简单 CSV 解析，支持引号
+  const rows = [];
+  let cur = [], field = '', inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuote) {
+      if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
+      else if (c === '"') { inQuote = false; }
+      else { field += c; }
+    } else {
+      if (c === '"') inQuote = true;
+      else if (c === ',') { cur.push(field); field = ''; }
+      else if (c === '\n') { cur.push(field); rows.push(cur); cur = []; field = ''; }
+      else if (c === '\r') { /* skip */ }
+      else field += c;
+    }
+  }
+  if (field || cur.length) { cur.push(field); rows.push(cur); }
+  return rows.filter(r => r.some(x => x && x.trim()));
+}
+
+function mapCowRow(row, headers) {
+  // 支持中英文列名
+  const map = {};
+  headers.forEach((h, i) => {
+    const key = h.trim().toLowerCase()
+      .replace(/[（(]([^)）]+)[)）]/g, '$1') // 提取括号里的英文名
+      .replace(/\s+/g, '');
+    map[key] = row[i]?.trim() || '';
+  });
+
+  // 中英文字段匹配
+  const getVal = (...keys) => {
+    for (const k of keys) {
+      if (map[k] !== undefined && map[k] !== '') return map[k];
+    }
+    return '';
+  };
+
+  return {
+    tag: getVal('tag', '耳标', '耳标号', '耳标号tag'),
+    name: getVal('name', '名字', '姓名', '名称'),
+    breed: getVal('breed', '品种') || '西门塔尔',
+    gender: getVal('gender', '性别') || '母',
+    birth_date: getVal('birth_date', '出生日期', '出生', '生日') || null,
+    weight: parseFloat(getVal('weight', 'weight_kg', '体重', '体重kg')) || 0,
+    barn: getVal('barn', '牛舍', '所在牛舍', '栏舍') || '',
+    status: getVal('status', '状态', '健康状态') || '正常',
+    source: getVal('source', '来源', '来源方式') || '自繁',
+    entry_date: getVal('entry_date', '入场日期', '进场日期', '入场') || null,
+    note: getVal('note', '备注', '说明') || ''
+  };
+}
+
+function handleCsvDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) readCsvFile(file);
+}
+
+function handleCsvFile(e) {
+  const file = e.target.files[0];
+  if (file) readCsvFile(file);
+}
+
+function readCsvFile(file) {
+  if (!file.name.endsWith('.csv')) {
+    alert('请选择 CSV 文件！\n（Excel 里另存为 CSV UTF-8 格式）');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const rows = parseCSV(text);
+    if (rows.length < 2) { alert('CSV 文件内容为空或格式不对'); return; }
+
+    const headers = rows[0];
+    const dataRows = rows.slice(1);
+    _importData = dataRows.map(r => mapCowRow(r, headers)).filter(x => x.tag);
+
+    if (!_importData.length) { alert('没有解析到有效数据（耳标是必填项）'); return; }
+
+    // 显示预览
+    document.getElementById('import-preview').style.display = 'block';
+    const thead = document.getElementById('import-thead');
+    const tbody = document.getElementById('import-tbody');
+    const previewCols = ['tag', 'name', 'breed', 'gender', 'weight', 'barn', 'status'];
+    const colNames = { tag:'耳标', name:'名字', breed:'品种', gender:'性别', weight:'体重', barn:'牛舍', status:'状态' };
+    thead.innerHTML = '<tr>' + previewCols.map(c => `<th style="padding:6px 8px;background:#f5f7fa;">${colNames[c]}</th>`).join('') + '</tr>';
+    tbody.innerHTML = _importData.slice(0, 5).map(r =>
+      '<tr>' + previewCols.map(c => `<td style="padding:6px 8px;border-bottom:1px solid #eee;">${r[c] || '-'}</td>`).join('') + '</tr>'
+    ).join('');
+
+    document.getElementById('import-summary').innerHTML =
+      `共解析到 <b style="color:#1b5e20;">${_importData.length}</b> 条牛只数据`;
+    document.getElementById('import-confirm-btn').disabled = false;
+    document.getElementById('import-confirm-btn').style.opacity = '1';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+async function confirmImport() {
+  if (!_importData.length) return;
+  if (!confirm(`确定导入 ${_importData.length} 条牛只数据？\n\n重复耳标会自动跳过。`)) return;
+
+  const btn = document.getElementById('import-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = '导入中...';
+
+  let success = 0, skipped = 0, failed = 0;
+  const failedTags = [];
+
+  // 先获取所有已存在的耳标
+  try {
+    const existing = await SUPA.list('cows', 'select=tag');
+    const existTags = new Set(existing.map(c => c.tag));
+
+    const toInsert = _importData.filter(c => {
+      if (existTags.has(c.tag)) { skipped++; return false; }
+      return true;
+    });
+
+    // 批量插入
+    if (toInsert.length) {
+      await SUPA.insert('cows', toInsert);
+      success = toInsert.length;
+    }
+  } catch(e) {
+    failed = _importData.length;
+    alert('导入失败：' + e.message);
+  }
+
+  alert(`导入完成！\n\n✅ 成功：${success} 条\n⏭️  重复跳过：${skipped} 条\n❌ 失败：${failed} 条`);
+  closeModal();
+  renderCows();
+  renderDashboard();
 }
 
 function showCowModal(cow = null) {
@@ -1236,12 +1433,18 @@ async function renderHealth() {
 }
 
 function showHealthModal() {
+  const cows = window._allCows || [];
   const html = `
     <div id="modal-mask" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;">
       <div style="background:#fff;border-radius:10px;padding:25px;width:90%;max-width:450px;">
         <h3 style="color:#1b5e20;margin-bottom:15px;">添加健康记录</h3>
         <div class="form-row">
-          <div class="form-group"><label>牛耳标</label><input id="mh-tag"></div>
+          <div class="form-group"><label>牛耳标</label>
+            <select id="mh-tag" style="width:100%;">
+              <option value="">请选择牛耳标</option>
+              ${cows.map(c => `<option value="${c.tag}">${c.tag} ${c.name ? '('+c.name+')' : ''}</option>`).join('')}
+            </select>
+          </div>
           <div class="form-group"><label>类型</label><select id="mh-type">
             <option>疫苗</option><option>驱虫</option><option>体检</option><option>治疗</option>
           </select></div>
@@ -1326,13 +1529,19 @@ async function renderBreeding() {
 }
 
 function showBreedingModal() {
+  const cows = window._allCows || [];
+  const cowOpts = cows.map(c => `<option value="${c.tag}">${c.tag} ${c.name ? '('+c.name+')' : ''}</option>`).join('');
   const html = `
     <div id="modal-mask" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;">
       <div style="background:#fff;border-radius:10px;padding:25px;width:90%;max-width:450px;">
         <h3 style="color:#1b5e20;margin-bottom:15px;">添加繁育记录</h3>
         <div class="form-row">
-          <div class="form-group"><label>母牛耳标 *</label><input id="mb-cow"></div>
-          <div class="form-group"><label>种公牛耳标</label><input id="mb-bull"></div>
+          <div class="form-group"><label>母牛耳标 *</label>
+            <select id="mb-cow" style="width:100%;"><option value="">请选择</option>${cowOpts}</select>
+          </div>
+          <div class="form-group"><label>种公牛耳标</label>
+            <select id="mb-bull" style="width:100%;"><option value="">请选择</option>${cowOpts}</select>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>配种方式</label><select id="mb-method">
@@ -1417,11 +1626,15 @@ async function renderWeight() {
 }
 
 function showWeightModal() {
+  const cows = window._allCows || [];
+  const cowOpts = cows.map(c => `<option value="${c.tag}">${c.tag} ${c.name ? '('+c.name+')' : ''}</option>`).join('');
   const html = `
     <div id="modal-mask" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;">
       <div style="background:#fff;border-radius:10px;padding:25px;width:90%;max-width:400px;">
         <h3 style="color:#1b5e20;margin-bottom:15px;">添加称重记录</h3>
-        <div class="form-group"><label>牛耳标 *</label><input id="mw-tag"></div>
+        <div class="form-group"><label>牛耳标 *</label>
+          <select id="mw-tag" style="width:100%;"><option value="">请选择</option>${cowOpts}</select>
+        </div>
         <div class="form-row">
           <div class="form-group"><label>体重(kg) *</label><input type="number" id="mw-weight" step="0.1"></div>
           <div class="form-group"><label>日期</label><input type="date" id="mw-date" value="${new Date().toISOString().split('T')[0]}"></div>
