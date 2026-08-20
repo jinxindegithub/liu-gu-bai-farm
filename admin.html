@@ -434,9 +434,151 @@
     .stat-icon { width: 45px; height: 45px; font-size: 20px; }
     .stat-info h3 { font-size: 20px; }
   }
+
+  /* 登录页 */
+  .login-page {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, #1b5e20 0%, #33691e 50%, #8bc34a 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  .login-page.hide { display: none; }
+  .login-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px 35px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: loginIn 0.5s ease-out;
+  }
+  @keyframes loginIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .login-logo {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  .login-logo .icon { font-size: 50px; margin-bottom: 10px; }
+  .login-logo h2 {
+    color: #1b5e20;
+    font-size: 22px;
+    letter-spacing: 2px;
+  }
+  .login-logo p {
+    color: #888;
+    font-size: 12px;
+    margin-top: 5px;
+  }
+  .login-input {
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .login-input label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #555;
+    font-weight: 500;
+  }
+  .login-input input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .login-input input:focus {
+    border-color: #689f38;
+  }
+  .login-btn {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, #7cb342, #558b2f);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 4px;
+    margin-top: 10px;
+  }
+  .login-btn:hover {
+    box-shadow: 0 6px 20px rgba(124,179,66,0.4);
+    transform: translateY(-1px);
+  }
+  .login-tip {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #f0f0f0;
+    font-size: 11px;
+    color: #aaa;
+  }
+  .login-error {
+    color: #f44336;
+    font-size: 12px;
+    margin-top: -8px;
+    margin-bottom: 10px;
+    text-align: center;
+    min-height: 16px;
+  }
+  .user-info {
+    padding: 15px 20px;
+    background: rgba(0,0,0,0.15);
+    margin: 10px;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .user-info .uname { font-weight: bold; font-size: 13px; margin-bottom: 3px; }
+  .user-info .urole { opacity: 0.7; }
+  .user-info .logout {
+    margin-top: 8px;
+    display: block;
+    text-align: center;
+    padding: 5px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .user-info .logout:hover { background: rgba(255,255,255,0.2); }
 </style>
 </head>
 <body>
+
+<!-- 登录页 -->
+<div class="login-page" id="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="icon">🐄</div>
+      <h2>刘古拜牛场养殖基地</h2>
+      <p>养殖管理系统 · 登录</p>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-input">
+      <label>账号</label>
+      <input type="text" id="login-username" placeholder="请输入账号" autocomplete="username">
+    </div>
+    <div class="login-input">
+      <label>密码</label>
+      <input type="password" id="login-password" placeholder="请输入密码" autocomplete="current-password">
+    </div>
+    <button class="login-btn" onclick="doLogin()">登 录</button>
+    <div class="login-tip">
+      默认管理员账号：admin / 123456<br>
+      登录后可在系统设置中管理其他账号
+    </div>
+  </div>
+</div>
 
 <!-- 侧边栏 -->
 <div class="sidebar">
@@ -468,6 +610,11 @@
       <span class="m-icon">⚙️</span><span>系统设置</span>
     </li>
   </ul>
+  <div class="user-info" id="user-info-box">
+    <div class="uname" id="user-name">管理员</div>
+    <div class="urole" id="user-role">超级管理员</div>
+    <div class="logout" onclick="doLogout()">退出登录</div>
+  </div>
   <div class="sidebar-bottom">
     <a href="index.html">← 返回首页</a>
   </div>
@@ -737,6 +884,26 @@
         <button class="btn btn-primary" onclick="addBarn()">添加牛舍</button>
       </div>
       <div id="barn-list"></div>
+    </div>
+
+    <div class="card" id="user-mgmt-card">
+      <h3 style="margin-bottom:20px;color:#1b5e20;">👤 账号管理 <small style="font-size:12px;color:#888;font-weight:normal;">管理员可见</small></h3>
+      <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+        <input type="text" id="new-user-name" placeholder="账号" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; width:140px;">
+        <input type="password" id="new-user-pass" placeholder="密码" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; width:140px;">
+        <select id="new-user-role" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px;">
+          <option value="viewer">查看员（只能看）</option>
+          <option value="operator">操作员（可录入数据）</option>
+          <option value="admin">管理员（全部权限）</option>
+        </select>
+        <button class="btn btn-primary" onclick="addUser()">添加账号</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>账号</th><th>角色</th><th>权限说明</th><th>操作</th></tr>
+        </thead>
+        <tbody id="user-table"></tbody>
+      </table>
     </div>
 
     <div class="card">
@@ -1081,6 +1248,182 @@
 </div>
 
 <script>
+// ========== 账号与权限系统 ==========
+const AUTH = {
+  getUsers() {
+    let users = DB.get('users', null);
+    if (!users) {
+      users = [
+        { username: 'admin', password: '123456', role: 'admin' }
+      ];
+      DB.set('users', users);
+    }
+    return users;
+  },
+  saveUsers(users) { DB.set('users', users); },
+
+  getCurrent() {
+    return JSON.parse(sessionStorage.getItem('liugubai_current') || 'null');
+  },
+  setCurrent(user) {
+    if (user) sessionStorage.setItem('liugubai_current', JSON.stringify(user));
+    else sessionStorage.removeItem('liugubai_current');
+  },
+
+  roleLabel(role) {
+    return { admin: '超级管理员', operator: '操作员', viewer: '查看员' }[role] || role;
+  },
+  roleDesc(role) {
+    return {
+      admin: '全部权限，可管理账号、设置系统',
+      operator: '可录入和修改数据，不可管理账号',
+      viewer: '仅可查看数据，不能修改'
+    }[role] || '';
+  }
+};
+
+function doLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const err = document.getElementById('login-error');
+
+  if (!username || !password) {
+    err.textContent = '请输入账号和密码';
+    return;
+  }
+
+  const users = AUTH.getUsers();
+  const user = users.find(u => u.username === username && u.password === password);
+
+  if (!user) {
+    err.textContent = '账号或密码错误';
+    return;
+  }
+
+  AUTH.setCurrent({ username: user.username, role: user.role });
+  document.getElementById('login-page').classList.add('hide');
+  applyPermissions(user.role);
+  err.textContent = '';
+}
+
+function doLogout() {
+  if (!confirm('确定退出登录？')) return;
+  AUTH.setCurrent(null);
+  location.reload();
+}
+
+function applyPermissions(role) {
+  const user = AUTH.getCurrent();
+  if (!user) {
+    document.getElementById('login-page').classList.remove('hide');
+    return;
+  }
+
+  // 显示当前用户
+  document.getElementById('user-name').textContent = user.username;
+  document.getElementById('user-role').textContent = AUTH.roleLabel(user.role);
+
+  // admin 全部可见；operator 隐藏账号管理；viewer 隐藏所有添加/编辑/删除按钮
+  const isAdmin = user.role === 'admin';
+  const isViewer = user.role === 'viewer';
+
+  // 账号管理卡片：仅 admin
+  const userCard = document.getElementById('user-mgmt-card');
+  if (userCard) userCard.style.display = isAdmin ? 'block' : 'none';
+
+  // 设置页的牛舍管理、数据管理：仅 admin
+  const settingsCards = document.querySelectorAll('#page-settings .card');
+  // 第1张 牛场基本信息、第2张 牛舍管理、第3张 账号管理、第4张 数据管理
+  settingsCards.forEach((card, i) => {
+    if (i >= 1 && !isAdmin) card.style.display = 'none';
+  });
+
+  // 所有添加/编辑/删除按钮：viewer 隐藏
+  if (isViewer) {
+    document.querySelectorAll('.btn-primary, .btn-danger, .btn-warn').forEach(btn => {
+      btn.style.display = 'none';
+    });
+    // 也隐藏操作列里的按钮（通过表格判断）
+    document.querySelectorAll('table th:last-child, table td:last-child').forEach(el => {
+      if (el.textContent.includes('操作') || el.querySelector('.btn')) {
+        el.style.display = 'none';
+      }
+    });
+  }
+}
+
+// 回车登录
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('login-page').classList.contains('hide')) {
+    doLogin();
+  }
+});
+
+// ========== 账号管理（设置页）==========
+function renderUsers() {
+  const users = AUTH.getUsers();
+  const roleDesc = AUTH.roleDesc;
+  const roleLabel = AUTH.roleLabel;
+  const cur = AUTH.getCurrent();
+
+  document.getElementById('user-table').innerHTML = users.map(u => `
+    <tr>
+      <td><b>${u.username}</b>${u.username === 'admin' ? ' <span class="tag tag-yellow">内置</span>' : ''}</td>
+      <td><span class="tag ${u.role === 'admin' ? 'tag-red' : u.role === 'operator' ? 'tag-blue' : 'tag-green'}">${roleLabel(u.role)}</span></td>
+      <td style="color:#888; font-size:12px;">${roleDesc(u.role)}</td>
+      <td>
+        ${u.username === 'admin'
+          ? '<span style="color:#aaa; font-size:12px;">不可删除</span>'
+          : `<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.username}')">删除</button>
+             <button class="btn btn-warn btn-sm" onclick="resetUserPwd('${u.username}')">重置密码</button>`
+        }
+      </td>
+    </tr>
+  `).join('');
+}
+
+function addUser() {
+  const name = document.getElementById('new-user-name').value.trim();
+  const pass = document.getElementById('new-user-pass').value;
+  const role = document.getElementById('new-user-role').value;
+
+  if (!name || !pass) { alert('请输入账号和密码'); return; }
+  if (name.length < 2) { alert('账号至少2位'); return; }
+  if (pass.length < 4) { alert('密码至少4位'); return; }
+
+  const users = AUTH.getUsers();
+  if (users.find(u => u.username === name)) { alert('该账号已存在'); return; }
+
+  users.push({ username: name, password: pass, role });
+  AUTH.saveUsers(users);
+
+  document.getElementById('new-user-name').value = '';
+  document.getElementById('new-user-pass').value = '';
+  renderUsers();
+  alert(`账号 ${name} 创建成功！`);
+}
+
+function deleteUser(username) {
+  if (!confirm(`确定删除账号 ${username}？`)) return;
+  let users = AUTH.getUsers();
+  users = users.filter(u => u.username !== username);
+  AUTH.saveUsers(users);
+  renderUsers();
+}
+
+function resetUserPwd(username) {
+  const newPwd = prompt(`请输入账号 ${username} 的新密码：`, '123456');
+  if (!newPwd) return;
+  if (newPwd.length < 4) { alert('密码至少4位'); return; }
+  const users = AUTH.getUsers();
+  const u = users.find(x => x.username === username);
+  if (u) {
+    u.password = newPwd;
+    AUTH.saveUsers(users);
+    alert('密码重置成功！新密码：' + newPwd);
+  }
+}
+
 // ========== 数据存储层（封装好，以后换成 API 只改这里）==========
 const DB = {
   get(key, def) {
@@ -1715,6 +2058,7 @@ function renderSettings() {
       <button class="btn btn-danger btn-sm" onclick="deleteBarn(${i})">删除</button>
     </div>
   `).join('');
+  renderUsers();
 }
 
 function saveSettings() {
@@ -1802,6 +2146,14 @@ function clearAllData() {
 
 // ========== 初始化 ==========
 initDefaultData();
+
+// 检查登录状态
+const currentUser = AUTH.getCurrent();
+if (currentUser) {
+  document.getElementById('login-page').classList.add('hide');
+  applyPermissions(currentUser.role);
+}
+
 refreshBarnSelects();
 renderDashboard();
 renderCows();
@@ -1809,6 +2161,7 @@ renderFeed();
 renderHealth();
 renderBreeding();
 renderWeight();
+renderUsers();
 </script>
 
 </body>
